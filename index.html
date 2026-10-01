@@ -1,0 +1,2724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+    <title>Recomp Plan - Interactive Logger</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#10b981">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Recomp">
+    <link rel="apple-touch-icon" href="apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <style>
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto; margin: 0; padding: 0; }
+        body { padding: 12px; background: #0b0f19; color: #e2e8f0; line-height: 1.5; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 24px; border-bottom: 2px solid #ef4444; padding-bottom: 12px; }
+        h1 { color: #ef4444; font-size: 28px; }
+        .subtitle { color: #94a3b8; font-size: 14px; margin-top: 4px; }
+
+        /* ── Tab rows ── */
+        .main-tabs, .day-tabs {
+            display: flex; gap: 8px; margin-bottom: 20px;
+            flex-wrap: wrap; border-bottom: 1px solid #334155; padding-bottom: 12px;
+        }
+        .main-tab-btn, .day-tab-btn {
+            padding: 10px 16px; border: none; background: #1e293b;
+            color: #cbd5e1; cursor: pointer; border-radius: 4px;
+            font-weight: 500; transition: background 0.2s;
+        }
+        .main-tab-btn:hover, .day-tab-btn:hover { background: #334155; }
+        .main-tab-btn.active, .day-tab-btn.active { background: #ef4444; color: #fff; }
+
+        /* ── Panels ── */
+        .panel { display: none; }
+        .panel.active { display: block; }
+
+        /* ── Workout day sheets — hidden by default, shown when active ── */
+        .workout-day { display: none; }
+        .workout-day.active { display: block; }
+
+        /* ── Cards & layout ── */
+        .section-intro { background: #1e293b; border-left: 4px solid #ef4444; padding: 12px 16px; margin-bottom: 20px; border-radius: 4px; font-size: 14px; }
+        .card { background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 16px; margin-bottom: 20px; }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #f1f5f9; display: flex; justify-content: space-between; align-items: center; }
+        .badge { font-size: 12px; padding: 4px 8px; background: #334155; border-radius: 3px; }
+        .grid-layout { display: grid; grid-template-columns: repeat(auto-fit, minmax(480px, 1fr)); gap: 20px; }
+        .workout-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; color: #f1f5f9; border-bottom: 2px solid #ef4444; padding-bottom: 8px; }
+
+        /* ── Exercise blocks ── */
+        .exercise-block { background: #0f172a; border-left: 4px solid #334155; padding: 14px; margin-bottom: 16px; border-radius: 4px; }
+        .exercise-name { font-size: 15px; font-weight: 600; color: #f1f5f9; margin-bottom: 6px; }
+        .combined-badge { display:inline-block; background:#312e5f; color:#c4b5fd; border:1px solid #4c4680; border-radius:3px; padding:1px 6px; font-size:10px; font-weight:600; vertical-align:middle; margin-left:6px; letter-spacing:.02em; }
+        .perside-badge { display:inline-block; background:#1e3a3a; color:#a7e8e0; border:1px solid #3d7a72; border-radius:3px; padding:1px 6px; font-size:10px; font-weight:600; vertical-align:middle; letter-spacing:.02em; }
+        .rep-target { font-size: 12px; color: #94a3b8; margin-bottom: 10px; }
+
+        /* ── Pyramid section ── */
+        .pyramid-section { background: #1a2a1a; border: 1px solid #34d399; border-radius: 4px; padding: 10px; margin-bottom: 10px; }
+        .pyramid-header { font-size: 12px; font-weight: 600; color: #34d399; margin-bottom: 8px; }
+        .pyramid-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-top: 6px; }
+        .pyramid-row { display: flex; align-items: center; gap: 8px; font-size: 12px; padding: 4px 6px; background: #0f172a; border-radius: 3px; }
+        .pyramid-pct { color: #94a3b8; min-width: 55px; }
+        .pyramid-weight { color: #34d399; font-weight: 600; min-width: 55px; }
+        .pyramid-reps { color: #cbd5e1; }
+
+        /* ── Set inputs ── */
+        .set-section { background: #1e293b; padding: 10px; border-radius: 4px; margin-bottom: 10px; }
+        .set-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; font-size: 13px; }
+        .set-label { color: #cbd5e1; min-width: 100px; font-weight: 500; }
+        input[type="number"] { background: #0f172a; border: 1px solid #334155; color: #f1f5f9; padding: 6px 8px; border-radius: 3px; width: 72px; font-size: 13px; }
+        input[type="number"]:focus { outline: none; border-color: #ef4444; }
+        .unit-label { color: #94a3b8; font-size: 12px; }
+
+        /* ── Drop set calc box ── */
+        .drop-calc { background: #1a2a1a; border: 1px solid #34d399; padding: 6px 10px; border-radius: 3px; font-size: 12px; color: #a6f3d0; margin: 4px 0 8px; }
+
+        .hist-session { background:#1e293b; border:1px solid #334155; border-left:4px solid #10b981; border-radius:6px; padding:14px; margin-bottom:14px; }
+        .hist-session-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #334155; }
+        .hist-date { font-size:15px; font-weight:600; color:#f1f5f9; }
+        .hist-ex { padding:8px 0; border-bottom:1px solid #0f172a; font-size:13px; }
+        .hist-ex:last-child { border-bottom:none; }
+        .hist-ex-name { color:#f1f5f9; font-weight:600; margin-bottom:3px; }
+        .hist-sets { color:#cbd5e1; font-size:12px; }
+        .hist-note { background:#f59e0b; color:#1a1206; border-radius:3px; padding:5px 8px; margin-top:5px; font-size:12px; font-weight:600; }
+        .hist-empty { text-align:center; padding:36px 16px; color:#64748b; font-size:14px; }
+        .hist-prog-row { display:flex; justify-content:space-between; gap:10px; padding:6px 8px; background:#0f172a; border-radius:3px; margin-bottom:4px; font-size:12px; }
+        .hist-prog-date { color:#94a3b8; min-width:80px; }
+        .hist-prog-val { color:#34d399; font-weight:600; }
+        .hist-up { color:#34d399; } .hist-down { color:#f87171; } .hist-same { color:#94a3b8; }
+        .stat-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+        @media (max-width:700px){ .stat-grid { grid-template-columns:repeat(2,1fr); } }
+
+        .prev-note {
+            background: #f59e0b; color: #1a1206; border-radius: 4px;
+            padding: 8px 10px; margin: 8px 0 4px; font-size: 13px; font-weight: 600;
+            display: flex; gap: 8px; align-items: flex-start; line-height: 1.45;
+            box-shadow: 0 0 0 2px rgba(245,158,11,0.25);
+        }
+        .prev-note-icon { font-size: 15px; line-height: 1.2; }
+        .gym-note-line { display:block; }
+        .gym-note-line.older { font-weight:500; opacity:.8; font-size:12px; margin-top:3px; }
+        .gym-note-date { font-weight:500; opacity:.65; font-size:11px; white-space:nowrap; }
+        .app-build { display:flex; gap:10px; align-items:center; justify-content:center; margin-top:8px; font-size:12px; color:#94a3b8; }
+        .app-build button { background:#1e293b; color:#e2e8f0; border:1px solid #334155; border-radius:4px; padding:5px 10px; font-size:12px; }
+        .update-banner { position:fixed; left:12px; right:12px; bottom:16px; z-index:999; background:#10b981; color:#04130d; font-weight:700; text-align:center; padding:12px; border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.4); }
+        .prev-note-label { text-transform: uppercase; font-size: 10px; letter-spacing: .06em; opacity: .75; display: block; margin-bottom: 2px; }
+
+        .rest-hint { font-size: 11px; color: #64748b; margin: -4px 0 8px; }
+        .rest-hint strong { color: #94a3b8; }
+
+        .backoff-calc { background: #2a2415; border: 1px solid #f59e0b; padding: 6px 10px; border-radius: 3px; font-size: 12px; color: #fcd34d; margin: 4px 0 8px; }
+
+        /* ── Net load box (pull-ups) ── */
+        .net-load-calc { background: #1a1a3a; border: 1px solid #6366f1; padding: 6px 10px; border-radius: 3px; font-size: 12px; color: #a5d8ff; margin: 4px 0; }
+
+        /* ── Progressive overload ── */
+        .start-suggestion { background:#2a2416; border:1px solid #8a6d2f; border-left:3px solid #d4a72c; border-radius:4px; padding:8px 10px; margin-top:8px; font-size:13px; color:#fde68a; line-height:1.5; }
+        .start-basis { display:block; margin-top:4px; font-size:11px; color:#a8925e; font-style:italic; }
+        .prev-session { background: #2a2210; border-left: 4px solid #f59e0b; padding: 8px 10px; border-radius: 3px; font-size: 12px; color: #fcd34d; margin-top: 8px; }
+        .rep-floor-miss { background:#3a1f1f; border:1px solid #b45454; color:#fca5a5; padding:6px 10px; border-radius:3px; font-size:12px; margin:4px 0 8px; }
+        .rep-ceiling-hit { background: #1a2a10; border-left: 4px solid #34d399; padding: 6px 10px; border-radius: 3px; font-size: 12px; color: #a6f3d0; margin-top: 4px; }
+
+        /* ── Save button ── */
+        .save-btn { background: #ef4444; color: #fff; border: none; padding: 8px 20px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 13px; margin-top: 10px; width: 100%; }
+        .save-btn:hover { background: #dc2626; }
+        .save-btn-day { background: #10b981; color: #fff; border: none; padding: 12px 24px; border-radius: 4px; cursor: pointer; font-weight: 700; font-size: 14px; margin-top: 20px; width: 100%; }
+        .save-btn-day:hover { background: #059669; }
+        .convention-note { background:#1a1f2e; border:1px solid #3f4a63; border-left:3px solid #a78bfa; color:#c7d2e5; padding:7px 10px; border-radius:4px; font-size:12px; line-height:1.5; margin-bottom:12px; }
+        .gym-bar { display:flex; align-items:center; gap:8px; background:#0f172a; border:1px solid #334155; padding:8px 10px; border-radius:4px; margin-bottom:12px; flex-wrap:wrap; }
+        .gym-label { font-size:12px; color:#94a3b8; }
+        .gym-select { background:#1e293b; color:#e2e8f0; border:1px solid #475569; border-radius:3px; padding:4px 8px; font-size:13px; }
+        .gym-edit { background:transparent; color:#64748b; border:1px solid #334155; border-radius:3px; padding:3px 8px; font-size:11px; cursor:pointer; }
+        .gym-edit:hover { color:#e2e8f0; border-color:#475569; }
+        .gymtag { display:inline-block; border-radius:3px; padding:1px 7px; font-size:10px; font-weight:600; margin-left:6px; vertical-align:middle; letter-spacing:.02em; }
+        .gymtag-0 { background:#14342a; color:#86efac; border:1px solid #2f6b52; }
+        .gymtag-1 { background:#1e3a5f; color:#bfdbfe; border:1px solid #3b6ea5; }
+        .gymtag-2 { background:#3b2f5c; color:#d8c9ff; border:1px solid #6d5b9e; }
+        .gymtag-3 { background:#3f2a1e; color:#fdba74; border:1px solid #8a5a34; }
+        .xgym { color:#fbbf24; margin-left:5px; font-size:12px; }
+        .gym-chip { display:inline-block; background:#1e3a5f; color:#bfdbfe; border-radius:3px; padding:1px 6px; font-size:11px; margin-left:4px; }
+        .samegym { margin-top:6px; padding:6px 8px; background:#132132; border-left:3px solid #38bdf8; border-radius:3px; font-size:12px; color:#cbd5e1; line-height:1.5; }
+        .calib-table { width:100%; border-collapse:collapse; font-size:13px; margin-bottom:10px; }
+        .calib-table th, .calib-table td { border:1px solid #334155; padding:6px 8px; text-align:left; vertical-align:top; }
+        .calib-table th { background:#1e293b; color:#94a3b8; font-size:12px; }
+        .calib-empty, .calib-pending, .calib-note { font-size:12px; color:#94a3b8; line-height:1.5; }
+        .calib-note { color:#64748b; margin-top:10px; font-style:italic; }
+        .draft-banner { display:none; background:#1e293b; border:1px solid #3b82f6; border-left:4px solid #3b82f6; color:#dbeafe; padding:10px 12px; border-radius:4px; font-size:13px; margin-bottom:14px; line-height:1.5; }
+        .draft-discard { background:#334155; color:#e2e8f0; border:1px solid #475569; padding:3px 10px; border-radius:3px; font-size:12px; cursor:pointer; margin-left:4px; }
+        .draft-discard:hover { background:#475569; }
+        .save-confirm { color: #34d399; font-size: 12px; margin-top: 6px; display: none; }
+
+        /* ── Nutrition / meals ── */
+        .meal-row { background: #0f172a; border-left: 4px solid #ef4444; padding: 12px; margin-bottom: 12px; border-radius: 4px; }
+        .meal-meta { font-size: 12px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+        .meal-name { font-size: 15px; font-weight: 600; color: #f1f5f9; margin-top: 4px; }
+        .meal-ingredients { font-size: 13px; color: #cbd5e1; margin-top: 6px; line-height: 1.6; }
+        .macro-pill-box { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+        .macro-pill { background: #334155; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+        .macro-pill span { color: #ef4444; font-weight: 600; }
+        .summary-box { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #334155; }
+        .summary-item { background: #0f172a; padding: 12px; border-radius: 4px; text-align: center; }
+        .summary-item.highlight { border: 2px solid #ef4444; }
+        .lbl { font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 600; }
+        .val { font-size: 20px; color: #f1f5f9; font-weight: 600; margin-top: 4px; }
+
+        /* ── Shopping / Prep ── */
+        .section-header { font-size: 15px; font-weight: 600; color: #f1f5f9; margin: 12px 0 6px; }
+        ul.shopping-list { list-style: none; padding: 0; margin: 0 0 12px; }
+        ul.shopping-list li { padding: 5px 0; border-bottom: 1px solid #1e293b; font-size: 14px; color: #cbd5e1; }
+        ul.shopping-list li::before { content: "• "; color: #ef4444; }
+        .warn-box { background: #2a1e10; border-left: 4px solid #f59e0b; padding: 10px 12px; border-radius: 3px; font-size: 13px; color: #fcd34d; margin: 12px 0; }
+        .ok-box { background: #1a2a1a; border-left: 4px solid #34d399; padding: 10px 12px; border-radius: 3px; font-size: 13px; color: #a6f3d0; margin: 12px 0; }
+        .prep-step { margin-bottom: 16px; }
+        .prep-step-title { font-weight: 600; color: #f1f5f9; margin-bottom: 6px; font-size: 14px; }
+        ul.prep-list { list-style: none; padding: 0; margin: 0; }
+        ul.prep-list li { padding: 4px 0 4px 16px; font-size: 13px; color: #cbd5e1; position: relative; }
+        ul.prep-list li::before { content: "→ "; color: #94a3b8; position: absolute; left: 0; }
+
+        /* ── Footer ── */
+        .footer { text-align: center; margin-top: 32px; padding-top: 16px; border-top: 1px solid #334155; color: #64748b; font-size: 12px; }
+
+        @media (max-width: 700px) {
+            .grid-layout { grid-template-columns: 1fr; }
+            h1 { font-size: 20px; }
+            .summary-box { grid-template-columns: repeat(2, 1fr); }
+            .pyramid-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+
+    <header>
+        <h1>🏋️ Recomp Plan — Interactive Logger</h1>
+        <p class="subtitle">Recomp Phase · Maintenance Calories · TDEE Discovery · Progressive Overload</p>
+        <div class="app-build"><span>Build <strong id="build-label"></strong></span><button onclick="checkForUpdate(this)">↻ Check for update</button></div>
+    </header>
+
+    <!-- MAIN TABS -->
+    <div class="main-tabs">
+        <button class="main-tab-btn active" onclick="switchMain('workouts',this)">🏋️ Workouts</button>
+        <button class="main-tab-btn" onclick="switchMain('history',this)">📈 History</button>
+        <button class="main-tab-btn" onclick="switchMain('tdee',this)">⚖️ TDEE Tracker</button>
+        <button class="main-tab-btn" onclick="switchMain('nutrition',this)">📊 Nutrition</button>
+        <button class="main-tab-btn" onclick="switchMain('shopping',this)">🛒 Shopping</button>
+        <button class="main-tab-btn" onclick="switchMain('prep',this)">🥘 Prep Guide</button>
+    </div>
+
+    <!-- ══════════════════════════════════════════ WORKOUTS ══ -->
+    <div id="workouts" class="panel active">
+        <div class="section-intro">
+            <strong>💪 Structure:</strong> <strong>Sat (Legs)</strong> and <strong>Sun (Full Upper)</strong> are locked anchors — these always happen. <strong>Push</strong>, <strong>Pull</strong> and <strong>Legs 2</strong> are floating: log them whenever you make it to the gym on a weekday. Enter your <em>Top Set weight</em> and pyramid/back-off/drop targets calculate instantly.<br><br>
+            <strong>🔄 Hypertrophy change (Sep 18):</strong> Added <strong>Legs 2</strong> and <strong>Upper 2</strong>, shorter second sessions for each half. Legs were the only muscle group trained once a week while everything upper got 2–3 exposures; splitting the weekly volume across two sessions is the bigger lever here than any macro change. Legs 2 is six exercises, no lying leg curl (often unavailable), with lighter rep ranges than Saturday so the two don't compete — Leg Press and Leg Extension are tracked separately as <em>(Volume)</em> variants for that reason. Upper 2 is the Sep 16 session: the anchor minus Chest-Supported Row, wrist work and Torso Rotations, with Rope Hammer Curl replacing Cable EZ Curl. Same rep ranges as Sunday, so history is shared rather than split.<br><br>
+            <strong>🔄 Earlier:</strong> Leg Press, Machine Bench Press, and Lat Pulldown carry a <strong>back-off set at ~85%</strong> between the top set and the drop. Chest-Supported Row picked up a pyramid warmup. That's the extra volume maintenance calories are paying for — put it into these three anchor lifts rather than adding exercises.
+        </div>
+
+        <div class="day-tabs">
+            <button class="day-tab-btn active" onclick="switchDay('sat',this)">Sat — Legs 🔒</button>
+            <button class="day-tab-btn" onclick="switchDay('sun',this)">Sun — Full Upper 🔒</button>
+            <button class="day-tab-btn" onclick="switchDay('push',this)">Push — Floating</button>
+            <button class="day-tab-btn" onclick="switchDay('pull',this)">Pull — Floating</button>
+            <button class="day-tab-btn" onclick="switchDay('legs2',this)">Legs 2 — Floating</button>
+            <button class="day-tab-btn" onclick="switchDay('upper2',this)">Upper 2 — Floating</button>
+        </div>
+
+        <div id="sat" class="workout-day active">
+            <div class="workout-title">Saturday — Heavy Legs (Anchor)</div>
+            <div class="gym-bar" id="gymbar-sat"></div>
+            <div class="draft-banner" id="draft-sat"></div>
+            <div id="sat-ex"></div>
+            <button class="save-btn-day" onclick="saveDay('sat')">💾 Save Legs Session</button>
+            <div class="save-confirm" id="conf-sat">✅ Legs session saved!</div>
+        </div>
+        <div id="sun" class="workout-day">
+            <div class="workout-title">Sunday — Full Upper (Anchor)</div>
+            <div class="gym-bar" id="gymbar-sun"></div>
+            <div class="draft-banner" id="draft-sun"></div>
+            <div id="sun-ex"></div>
+            <button class="save-btn-day" onclick="saveDay('sun')">💾 Save Full Upper Session</button>
+            <div class="save-confirm" id="conf-sun">✅ Full Upper session saved!</div>
+        </div>
+        <div id="push" class="workout-day">
+            <div class="workout-title">Push Day — Floating</div>
+            <div class="gym-bar" id="gymbar-push"></div>
+            <div class="draft-banner" id="draft-push"></div>
+            <div id="push-ex"></div>
+            <button class="save-btn-day" onclick="saveDay('push')">💾 Save Push Session</button>
+            <div class="save-confirm" id="conf-push">✅ Push session saved!</div>
+        </div>
+        <div id="pull" class="workout-day">
+            <div class="workout-title">Pull Day — Floating</div>
+            <div class="gym-bar" id="gymbar-pull"></div>
+            <div class="draft-banner" id="draft-pull"></div>
+            <div id="pull-ex"></div>
+            <button class="save-btn-day" onclick="saveDay('pull')">💾 Save Pull Session</button>
+            <div class="save-confirm" id="conf-pull">✅ Pull session saved!</div>
+        </div>
+    </div>
+
+        <div id="legs2" class="workout-day">
+            <div class="workout-title">Legs — Floating (second session)</div>
+            <div class="gym-bar" id="gymbar-legs2"></div>
+            <div class="draft-banner" id="draft-legs2"></div>
+            <div id="legs2-ex"></div>
+            <button class="save-btn-day" onclick="saveDay('legs2')">💾 Save Legs 2 Session</button>
+            <div class="save-confirm" id="conf-legs2">✅ Legs 2 session saved!</div>
+        </div>
+
+        <div id="upper2" class="workout-day">
+            <div class="workout-title">Upper 2 — Floating (shorter session)</div>
+            <div class="gym-bar" id="gymbar-upper2"></div>
+            <div class="draft-banner" id="draft-upper2"></div>
+            <div id="upper2-ex"></div>
+            <button class="save-btn-day" onclick="saveDay('upper2')">💾 Save Upper 2 Session</button>
+            <div class="save-confirm" id="conf-upper2">✅ Upper 2 session saved!</div>
+        </div>
+
+
+
+    <!-- ══════════════════════════════════════════ HISTORY ══ -->
+    <div id="history" class="panel">
+        <div class="section-intro">
+            <strong>📈 Every session you've saved.</strong> Each time you tap Save, a full snapshot is written here — weights, reps, and notes. Switch between a <em>session timeline</em> and a <em>per-exercise progression</em> view, and export the whole thing to CSV whenever you want it out of the browser.
+        </div>
+
+        <div class="card">
+            <h3 style="margin:0 0 8px;font-size:15px;">🏋️ Cross-gym calibration</h3>
+            <div id="calibration"></div>
+        </div>
+
+        <div class="day-tabs">
+            <button class="day-tab-btn active" onclick="switchHistView('timeline',this)">🗓 Session Timeline</button>
+            <button class="day-tab-btn" onclick="switchHistView('exercise',this)">📊 By Exercise</button>
+        </div>
+
+        <div class="card" id="hist-stats"></div>
+
+        <div id="hist-timeline" class="hist-view"></div>
+        <div id="hist-exercise" class="hist-view" style="display:none;"></div>
+
+        <div class="card">
+            <div class="card-title"><span>Data Management</span><span class="badge">Local Only</span></div>
+            <div class="meal-ingredients" style="margin-bottom:12px;">
+                Everything lives in this browser's storage — nothing is uploaded anywhere. That also means clearing your browser data wipes it, so export a CSV periodically if you care about keeping the record.
+            </div>
+            <button class="save-btn" onclick="exportCSV()" style="background:#10b981;">⬇️ Export All Sessions to CSV</button>
+            <button class="save-btn" onclick="clearHistory()" style="background:#475569;margin-top:8px;">🗑 Clear Session History</button>
+            <div class="save-confirm" id="conf-export">✅ CSV downloaded!</div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ TDEE ══ -->
+    <div id="tdee" class="panel">
+        <div class="section-intro">
+            <strong>⚖️ Finding your real maintenance.</strong> Log a weekly average weight and a weekly average intake. After three weeks the math below backs out what you're actually burning — which is almost always different from what any formula predicts.
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>Starting Estimates</span><span class="badge">Katch-McArdle</span></div>
+            <div class="stat-grid">
+                <div class="summary-item"><div class="lbl">BMR</div><div class="val">~1,485</div></div>
+                <div class="summary-item highlight"><div class="lbl">Est. TDEE</div><div class="val">~1,900</div></div>
+                <div class="summary-item"><div class="lbl">Lean Mass</div><div class="val">113.9</div></div>
+                <div class="summary-item"><div class="lbl">Sessions/wk</div><div class="val">2–4</div></div>
+            </div>
+            <div class="warn-box" style="margin-top:14px;">
+                ⚠️ After a long deficit, true maintenance often sits <strong>5–10% below</strong> what formulas predict. Your real starting TDEE may be closer to 1,750–1,850, and it should drift up over several weeks of eating at maintenance. A small gain in week one is expected and is not fat.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title"><span>Log a Week</span><span class="badge">Weekly Averages Only</span></div>
+            <div class="meal-ingredients" style="margin-bottom:14px;">
+                Weigh daily under the same conditions and average the seven readings. Single-day weights are useless here — sodium, glycogen, and water swamp the signal entirely.
+            </div>
+            <div class="set-section">
+                <div class="set-row">
+                    <span class="set-label">Week #:</span>
+                    <input type="number" id="tdee-week" placeholder="1" min="1" max="52">
+                    <span class="unit-label">&nbsp;</span>
+                </div>
+                <div class="set-row">
+                    <span class="set-label">Avg weight:</span>
+                    <input type="number" id="tdee-weight" placeholder="135.0" step="0.1" min="0">
+                    <span class="unit-label">lbs (7-day mean)</span>
+                </div>
+                <div class="set-row">
+                    <span class="set-label">Avg intake:</span>
+                    <input type="number" id="tdee-cal" placeholder="1580" min="0">
+                    <span class="unit-label">cal/day</span>
+                </div>
+                <div class="set-row">
+                    <span class="set-label">Sessions:</span>
+                    <input type="number" id="tdee-sessions" placeholder="3" min="0" max="7">
+                    <span class="unit-label">gym visits this week</span>
+                </div>
+                <div class="set-row" style="margin-top:10px;">
+                    <input type="text" id="tdee-note" placeholder="Notes (energy, gym performance, sleep, stress)" style="width:100%;padding:6px 8px;font-size:13px;background:#0f172a;border:1px solid #334155;color:#f1f5f9;border-radius:3px;">
+                </div>
+                <button class="save-btn-day" onclick="saveWeek()">💾 Save Week</button>
+                <div class="save-confirm" id="conf-tdee">✅ Week saved!</div>
+            </div>
+        </div>
+
+        <div class="card" id="tdee-result"></div>
+        <div id="tdee-log"></div>
+
+        <div class="card">
+            <div class="card-title"><span>How to Read It</span><span class="badge">Interpretation</span></div>
+            <div class="meal-ingredients" style="font-size:14px;line-height:1.8;">
+                <strong>The formula:</strong> TDEE = average intake − (weight change × 3,500 ÷ days)<br><br>
+                • <strong>Weeks 1–2 are throwaway data.</strong> Glycogen and water are refilling. Expect 2–4 lbs up. This is not fat and does not mean the plan failed.<br>
+                • <strong>Read the 7-day rolling average, never a single day.</strong> Daily readings are dominated by glycogen, water and gut contents.<br>
+                    • <strong>Do NOT judge progress by the body-fat % reading.</strong> It read 15.7% on Sep 7 and 18.1% on Sep 15 — a 2.4-point swing in eight days. Bioimpedance tracks hydration, not fat. Target is <strong>142.0 lb rolling average by Oct 16</strong>, with logged lifts holding steady.<br>
+                • <strong>Losing 0.6–0.7 lb/week with strength holding</strong> → lean phase working as intended. This is the target state.<br>
+                • <strong>Losing more than ~1 lb/week</strong> → deficit too aggressive to hold lean mass. Add 150–250 cal.<br>
+                • <strong>Weight flat</strong> → not actually in a deficit. Cut 150–250 cal.<br>
+                    • <strong>Strength dropping across sessions</strong> → losing lean mass, not just fat. Raise calories — protein is already at 175g.<br><br>
+                Strength on your anchor lifts is the better signal than the scale. If Leg Press and Machine Bench Press are climbing while weight holds, the composition is moving even when the number doesn't.
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ NUTRITION ══ -->
+    <div id="nutrition" class="panel">
+        <div class="section-intro">
+            <strong>🔄 <strong>LEAN PHASE &mdash; goal changed Sep 20.</strong> Target is <strong>&le;16% body fat by Oct 16</strong>. That requires a deficit, so the Sep 18 lean-bulk targets are off.<br><br>
+                <strong>Training 2,250 &middot; Rest 2,050 &middot; ~2,150/day average.</strong> Protein floor <strong>175g</strong> (raised from 164 &mdash; in a deficit protein protects lean mass, which is the whole point). Fat floor <strong>62g</strong> (lowered from 67/69 to make room). Carbs take the remainder: 248g training, 198g rest.<br><br>
+                <strong>~350 cal/day deficit</strong> against an estimated 2,400&ndash;2,500 maintenance &rarr; roughly 0.6&ndash;0.7 lb/week, landing near 142 lb by Oct 16.<br><br>
+                <strong>Protein is now the macro to protect.</strong> If a day goes sideways, hit the protein floor even if everything else slips. Hypertrophy largely pauses for four weeks &mdash; that's the deliberate trade.</div>
+
+        <div class="warn-box" style="margin-bottom:20px;">
+            📌 <strong>The phase templates below are historical.</strong> Phase 1 (1,700/1,490) and Phase 2 (2,062/1,768) were built for the recomp at an assumed ~1,900 maintenance. Both are well under current targets — keep them for the meal structure and portion ideas, not the numbers. Current targets are at the top of this tab.</div>
+
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-title"><span>The Two Phases</span><span class="badge">Read First</span></div>
+            <div class="grid-layout" style="gap:14px;">
+                <div class="meal-row">
+                    <div class="meal-meta">Weeks 1–2 — Ramp</div>
+                    <div class="meal-name">~1,580 cal/day average</div>
+                    <div class="meal-ingredients">Training days 1,700 · rest days 1,490. About 250 cal/day above where you've been. Enough to feel it in the gym, small enough that the scale stays readable.</div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">Week 3 onward — The Test</div>
+                    <div class="meal-name">~1,900 cal/day average</div>
+                    <div class="meal-ingredients">Training days 2,050 · rest days 1,790. This is the estimated maintenance you're trying to confirm. Hold it three full weeks before drawing any conclusion.</div>
+                </div>
+            </div>
+            <div class="ok-box" style="margin-top:12px;">✅ Attendance barely matters to the average. Two sessions a week lands ~1,864/day, four lands ~1,939. That ±40 spread is inside the noise — <strong>don't recalculate anything when a float day falls through.</strong></div>
+        </div>
+
+        <div class="grid-layout">
+
+            <div class="card">
+                <div class="card-title"><span>Phase 1 — Training Day</span><span class="badge">Historical</span></div>
+                <div class="meal-row">
+                    <div class="meal-meta">04:45 AM — Pre-Workout</div>
+                    <div class="meal-name">Fast Carb Hit</div>
+                    <div class="meal-ingredients">1 medium banana + 1 tbsp honey. Unchanged from the cut — this part was already working.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>0g</span></div><div class="macro-pill">C: <span>44g</span></div><div class="macro-pill">F: <span>0g</span></div><div class="macro-pill">~<span>165 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">06:45 AM — Post-Workout</div>
+                    <div class="meal-name">Oat Bowl &amp; Protein</div>
+                    <div class="meal-ingredients">40g rolled oats, 1 scoop protein blend, 1 cup unsweetened almond milk.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>31.9g</span></div><div class="macro-pill">C: <span>48.5g</span></div><div class="macro-pill">F: <span>4.5g</span></div><div class="macro-pill">~<span>374 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">12:00 PM — Packable Lunch</div>
+                    <div class="meal-name">Larb <em>or</em> Greek Chicken</div>
+                    <div class="meal-ingredients">1/3 batch of whichever you prepped. Unchanged.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>39g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>15.8g</span></div><div class="macro-pill">~<span>328 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">03:00 PM — Snack</div>
+                    <div class="meal-name">Greek Yogurt</div>
+                    <div class="meal-ingredients"><strong>400g nonfat Greek yogurt.</strong> Portion into a container Sunday alongside the tzatziki batch — same tub. Rotate with 135g cooked chicken, 2 tuna pouches, or 300g cottage cheese if you want variety.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>40g</span></div><div class="macro-pill">C: <span>16g</span></div><div class="macro-pill">F: <span>0g</span></div><div class="macro-pill">~<span>224 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">03:15 PM — Added</div>
+                    <div class="meal-name">Almonds — 15g</div>
+                    <div class="meal-ingredients">Weighed, always. <strong>15g in Phase 1.</strong> Small, dense, portable.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>3.2g</span></div><div class="macro-pill">C: <span>3.2g</span></div><div class="macro-pill">F: <span>7.5g</span></div><div class="macro-pill">~<span>87 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">06:30 PM — Dinner</div>
+                    <div class="meal-name">Beef &amp; Potato</div>
+                    <div class="meal-ingredients">140g cooked 93% lean beef, 150g cooked potatoes, 4 oz string beans, 0.75 tsp olive oil.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>43g</span></div><div class="macro-pill">C: <span>33g</span></div><div class="macro-pill">F: <span>14.5g</span></div><div class="macro-pill">~<span>445 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#64748b;">
+                    <div class="meal-meta">All Day — Standing</div>
+                    <div class="meal-name">Auto-Logged Items</div>
+                    <div class="meal-ingredients">4 energy drinks (40 cal, 4g C) + 3 omega-3 softgels at dinner (40 cal, 4g F). <strong>Always present, never logged manually</strong> — the meal cards above must leave room for these.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>0g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>4g</span></div><div class="macro-pill">~<span>80 cal</span></div></div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-item"><div class="lbl">Calories</div><div class="val">1,703</div></div>
+                    <div class="summary-item highlight"><div class="lbl">Protein</div><div class="val">157g</div></div>
+                    <div class="summary-item"><div class="lbl">Carbs</div><div class="val">153g</div></div>
+                    <div class="summary-item"><div class="lbl">Fat</div><div class="val">46g</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span>Phase 1 — Rest Day</span><span class="badge">Historical</span></div>
+                <div class="meal-row">
+                    <div class="meal-meta">06:00 AM — Breakfast</div>
+                    <div class="meal-name">Eggs &amp; Greek Yogurt</div>
+                    <div class="meal-ingredients"><strong>2 large hard-boiled eggs + 200g nonfat Greek yogurt.</strong> Splitting breakfast holds protein and frees ~10g of fat versus 4 whole eggs — that fat was crowding carbs out against the calorie ceiling.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>32.5g</span></div><div class="macro-pill">C: <span>9g</span></div><div class="macro-pill">F: <span>10.5g</span></div><div class="macro-pill">~<span>267 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">12:00 PM — Packable Lunch</div>
+                    <div class="meal-name">Larb <em>or</em> Greek Chicken</div>
+                    <div class="meal-ingredients">1/3 batch. Unchanged.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>39g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>15.8g</span></div><div class="macro-pill">~<span>328 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">03:00 PM — Snack</div>
+                    <div class="meal-name">Greek Yogurt</div>
+                    <div class="meal-ingredients"><strong>285g nonfat Greek yogurt.</strong> Smaller than training days since breakfast now carries yogurt too. Rotate with 135g cooked chicken, 2 tuna pouches, or 300g cottage cheese.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>28.5g</span></div><div class="macro-pill">C: <span>11.4g</span></div><div class="macro-pill">F: <span>0g</span></div><div class="macro-pill">~<span>160 cal</span></div></div>
+                </div>
+                <div class="meal-row">
+                    <div class="meal-meta">06:30 PM — Dinner</div>
+                    <div class="meal-name">Tilapia, Potato &amp; Asparagus</div>
+                    <div class="meal-ingredients">170g cooked tilapia, <strong>~255g cooked potatoes</strong>, 200g roasted asparagus, <strong>19g olive oil</strong>. <em>Potato is the lever here — scale it up or down to land on the day's calorie ceiling.</em></div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>55g</span></div><div class="macro-pill">C: <span>60g</span></div><div class="macro-pill">F: <span>23.5g</span></div><div class="macro-pill">~<span>653 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#64748b;">
+                    <div class="meal-meta">All Day — Standing</div>
+                    <div class="meal-name">Auto-Logged Items</div>
+                    <div class="meal-ingredients">4 energy drinks (40 cal, 4g C) + 3 omega-3 softgels at dinner (40 cal, 4g F). <strong>Always present, never logged manually</strong> — the meal cards above must leave room for these.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>0g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>4g</span></div><div class="macro-pill">~<span>80 cal</span></div></div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-item"><div class="lbl">Calories</div><div class="val">1,488</div></div>
+                    <div class="summary-item highlight"><div class="lbl">Protein</div><div class="val">155g</div></div>
+                    <div class="summary-item"><div class="lbl">Carbs</div><div class="val">88g</div></div>
+                    <div class="summary-item"><div class="lbl">Fat</div><div class="val">54g</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span>Phase 2 — Training Day</span><span class="badge">Historical</span></div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">04:45 AM — Pre-Workout</div>
+                    <div class="meal-name">Fast Carb Hit</div>
+                    <div class="meal-ingredients">1 medium banana + 1 tbsp honey.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>0g</span></div><div class="macro-pill">C: <span>44g</span></div><div class="macro-pill">F: <span>0g</span></div><div class="macro-pill">~<span>165 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">06:45 AM — Post-Workout</div>
+                    <div class="meal-name">Loaded Oat Bowl</div>
+                    <div class="meal-ingredients">40g rolled oats, 1 scoop protein blend, 1 cup almond milk, <strong>+1 medium banana</strong>. The banana goes back in — this is your biggest glycogen window.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>31.9g</span></div><div class="macro-pill">C: <span>75g</span></div><div class="macro-pill">F: <span>4.5g</span></div><div class="macro-pill">~<span>479 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">12:00 PM — Packable Lunch</div>
+                    <div class="meal-name">Larb <em>or</em> Greek Chicken</div>
+                    <div class="meal-ingredients">1/3 batch.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>39g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>15.8g</span></div><div class="macro-pill">~<span>328 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">03:00 PM — Snack</div>
+                    <div class="meal-name">Greek Yogurt</div>
+                    <div class="meal-ingredients"><strong>400g nonfat Greek yogurt.</strong> Portion into a container Sunday alongside the tzatziki batch — same tub. Rotate with 135g cooked chicken, 2 tuna pouches, or 300g cottage cheese if you want variety.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>40g</span></div><div class="macro-pill">C: <span>16g</span></div><div class="macro-pill">F: <span>0g</span></div><div class="macro-pill">~<span>224 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">03:15 PM — Added</div>
+                    <div class="meal-name">Almonds — 35g</div>
+                    <div class="meal-ingredients">Doubled from Phase 1. Easiest place to add dense calories without volume.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>7.4g</span></div><div class="macro-pill">C: <span>7.6g</span></div><div class="macro-pill">F: <span>17.5g</span></div><div class="macro-pill">~<span>203 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">06:30 PM — Dinner</div>
+                    <div class="meal-name">Beef &amp; Potato</div>
+                    <div class="meal-ingredients">140g cooked 93% lean beef, <strong>200g</strong> cooked potatoes, 4 oz string beans, <strong>1.5 tsp olive oil</strong>.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>43g</span></div><div class="macro-pill">C: <span>44g</span></div><div class="macro-pill">F: <span>24.5g</span></div><div class="macro-pill">~<span>583 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#64748b;">
+                    <div class="meal-meta">All Day — Standing</div>
+                    <div class="meal-name">Auto-Logged Items</div>
+                    <div class="meal-ingredients">4 energy drinks (40 cal, 4g C) + 3 omega-3 softgels at dinner (40 cal, 4g F). <strong>Always present, never logged manually</strong> — the meal cards above must leave room for these.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>0g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>4g</span></div><div class="macro-pill">~<span>80 cal</span></div></div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-item"><div class="lbl">Calories</div><div class="val">2,062</div></div>
+                    <div class="summary-item highlight"><div class="lbl">Protein</div><div class="val">161g</div></div>
+                    <div class="summary-item"><div class="lbl">Carbs</div><div class="val">195g</div></div>
+                    <div class="summary-item"><div class="lbl">Fat</div><div class="val">66g</div></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title"><span>Phase 2 — Rest Day</span><span class="badge">Historical</span></div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">06:00 AM — Breakfast</div>
+                    <div class="meal-name">Eggs &amp; Greek Yogurt</div>
+                    <div class="meal-ingredients"><strong>2 large hard-boiled eggs + 200g nonfat Greek yogurt.</strong> Splitting breakfast holds protein and frees ~10g of fat versus 4 whole eggs — that fat was crowding carbs out against the calorie ceiling.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>32.5g</span></div><div class="macro-pill">C: <span>9g</span></div><div class="macro-pill">F: <span>10.5g</span></div><div class="macro-pill">~<span>267 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">12:00 PM — Packable Lunch</div>
+                    <div class="meal-name">Larb <em>or</em> Greek Chicken</div>
+                    <div class="meal-ingredients">1/3 batch.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>39g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>15.8g</span></div><div class="macro-pill">~<span>328 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">03:00 PM — Snack</div>
+                    <div class="meal-name">Greek Yogurt</div>
+                    <div class="meal-ingredients"><strong>285g nonfat Greek yogurt.</strong> Smaller than training days since breakfast now carries yogurt too. Portion into a container Sunday alongside the tzatziki batch — same tub. Rotate with 135g cooked chicken, 2 tuna pouches, or 300g cottage cheese if you want variety.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>28.5g</span></div><div class="macro-pill">C: <span>11.4g</span></div><div class="macro-pill">F: <span>0g</span></div><div class="macro-pill">~<span>160 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">03:15 PM — Added</div>
+                    <div class="meal-name">Almonds — 30g</div>
+                    <div class="meal-ingredients">Splits the difference between training and Phase 1 rest days.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>6.4g</span></div><div class="macro-pill">C: <span>6.5g</span></div><div class="macro-pill">F: <span>15g</span></div><div class="macro-pill">~<span>173 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">06:30 PM — Dinner</div>
+                    <div class="meal-name">Tilapia, Potato &amp; Asparagus</div>
+                    <div class="meal-ingredients">170g cooked tilapia, <strong>~400g cooked potatoes</strong>, 200g roasted asparagus, <strong>12g olive oil</strong>. <em>Potato is the lever — scale to the calorie ceiling.</em></div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>55g</span></div><div class="macro-pill">C: <span>84g</span></div><div class="macro-pill">F: <span>22g</span></div><div class="macro-pill">~<span>760 cal</span></div></div>
+                </div>
+                <div class="meal-row" style="border-left-color:#64748b;">
+                    <div class="meal-meta">All Day — Standing</div>
+                    <div class="meal-name">Auto-Logged Items</div>
+                    <div class="meal-ingredients">4 energy drinks (40 cal, 4g C) + 3 omega-3 softgels at dinner (40 cal, 4g F). <strong>Always present, never logged manually</strong> — the meal cards above must leave room for these.</div>
+                    <div class="macro-pill-box"><div class="macro-pill">P: <span>0g</span></div><div class="macro-pill">C: <span>4g</span></div><div class="macro-pill">F: <span>4g</span></div><div class="macro-pill">~<span>80 cal</span></div></div>
+                </div>
+                <div class="summary-box">
+                    <div class="summary-item"><div class="lbl">Calories</div><div class="val">1,768</div></div>
+                    <div class="summary-item highlight"><div class="lbl">Protein</div><div class="val">161g</div></div>
+                    <div class="summary-item"><div class="lbl">Carbs</div><div class="val">119g</div></div>
+                    <div class="summary-item"><div class="lbl">Fat</div><div class="val">67g</div></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <div class="card-title"><span>Macro Ordering Rules</span><span class="badge">These Govern</span></div>
+            <div class="meal-ingredients" style="font-size:14px;line-height:1.8;">
+                The meal cards above are <strong>templates, not prescriptions</strong>. When they conflict with these rules, the rules win.
+                <br><br>
+                <strong>Priority order (Sun–Thu):</strong><br>
+                1. <strong>Calories are a hard ceiling.</strong> Nothing overrides this.<br>
+                2. <strong>Protein floor (~160g)</strong> is the priority inside it. Overage is fine only if it fits under the ceiling — it never pushes calories over.<br>
+                3. <strong>Fat floor</strong> next, for hormonal health. Fat outranks carbs.<br>
+                4. <strong>Carbs are the lever</strong> — they absorb whatever room is left.
+                <br><br>
+                <strong>Friday:</strong> carbs get priority, but fat holds a hard 45g minimum.<br>
+                <strong>Saturday:</strong> carbs take full precedence; fat may run under floor.
+                <br><br>
+                Both exceptions exist to fuel the Sat legs / Sun full upper anchors. <strong>If the anchors move, revisit the rule.</strong>
+            </div>
+            <div class="warn-box" style="margin-top:12px;">
+                ⚖️ <strong>The rest-day target can't be hit exactly.</strong> 155g protein + 99g carbs + 54g fat sums to 1,502 calories against a 1,490 ceiling — it's over-specified. Following the priority order lands you at <strong>1,490 cal · 155g P · 54g F · ~89g C</strong>. Carbs absorb the shortfall, which is exactly what the rule says should happen.
+            </div>
+            <div class="ok-box">
+                🍠 <strong>Why the dinner potato is the lever:</strong> carbs are the residual, so they belong in one adjustable place rather than scattered across fixed items. Scale the potato to hit the ceiling after protein and fat are covered.
+            </div>
+            <div class="ok-box">
+                🥚 <strong>Why breakfast is split.</strong> Four whole eggs carried 21g of fat, which crowded carbs out against the rest-day calorie ceiling. Two eggs plus 200g of yogurt holds the same protein for half the fat, and the freed room went into the dinner potato.
+            </div>
+            <div class="warn-box">
+                ⏰ <strong>Early-AM sessions are fueled by the night before.</strong> A 5:30 AM lift runs on Thursday's dinner, not Friday's banana. Load carbs at the previous night's dinner — that's exactly why Friday is a carb-priority day feeding Saturday's legs.
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <div class="card-title"><span>Levers &amp; Measurement</span><span class="badge">Standing Rules</span></div>
+            <div class="meal-ingredients" style="font-size:14px;line-height:1.8;">
+                <strong>Almonds are the calorie lever</strong>, always weighed — 15g Phase 1 training · 35g Phase 2 training. (Rest days get their fat from dinner oil instead.)<br>
+                <strong>CorePower and Quest bars are backups, not defaults</strong> — cost, and whole food is the preference. Max one CorePower on the days you do use one.<br>
+                <strong>Weigh meat and rice cooked</strong>, never raw or dry. Jasmine rice expands ~2.8× dry to cooked.
+                <br><br>
+                <strong>Tracking:</strong><br>
+                • Weigh in daily on waking, same conditions. <strong>Compare weekly averages only</strong>, never day to day.<br>
+                • Use <strong>active</strong> calories from the watch, not total — total includes resting burn already inside maintenance.<br>
+                • Wrist HR underestimates resistance training. Treat lifting burn as a <strong>floor, not a measurement</strong>.<br>
+                • Sick days, travel weeks, and procedure prep are <strong>excluded from averages entirely</strong>.
+            </div>
+            <div class="ok-box" style="margin-top:12px;">
+                📅 <strong>Friday mornings:</strong> you know by Thursday bedtime whether the gym happens. If it's on, carb-load Thursday dinner — the 5:30 AM session runs on that, not on Friday's breakfast. Friday still defaults to a rest day otherwise.
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+            <div class="card-title"><span>What Changed From the Cut</span><span class="badge">Orientation</span></div>
+            <div class="meal-ingredients" style="font-size:14px;line-height:1.8;">
+                • <strong>Rest days stopped being punishment days.</strong> They ran 17g of carbs on the cut. Now dinner carries a real potato portion — you're recovering on those days, not just surviving them.<br>
+                • <strong>Almonds are the new lever.</strong> Adding 300+ calories through more chicken or rice means more volume and more prep. 20–40g of almonds does it in a handful and travels in your bag.<br>
+                • <strong>Protein didn't move.</strong> 155–164g across every day type, both phases. It's the one thing you shouldn't flex.<br>
+                • <strong>Lunch and breakfast are untouched.</strong> The larb, the Greek bowl, the eggs, the two-batch prep cadence — all identical. You're not relearning your week.
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ SHOPPING ══ -->
+    <div id="shopping" class="panel">
+        <div class="section-intro"><strong>🛒 Two trips:</strong> The <strong>Sunday</strong> trip buys for both weekday lunch batches at once — the larb you cook that day, and the Greek chicken you cook Tuesday. The <strong>Thursday</strong> top-up covers weekend anchor days and refreshes produce.</div>
+        <div class="grid-layout">
+            <div class="card">
+                <div class="card-title"><span>Sunday Trip</span><span class="badge">Both Lunch Batches</span></div>
+                <div class="ok-box" style="margin-top:0;">Buy for <strong>both</strong> batches now. Chicken and yogurt keep fine until Tuesday — no second trip needed midweek.</div>
+                <div class="section-header">🥩 Proteins</div>
+                <ul class="shopping-list">
+                    <li>Ground beef 93% lean — <strong>2 packs</strong> (2 × 1.333 lb / 605g)</li>
+                    <li style="color:#94a3b8;font-size:13px;">↳ Pack 1 → larb batch (uses the full 605g). Pack 2 → browned and portioned for dinners</li>
+                    <li>Tilapia fillets — ~1.5 lbs (frozen is fine)</li>
+                    <li>Eggs — 2 dozen (4 per breakfast on every non-training day, plus spares)</li>
+                    <li>Chicken breast — ~1.0 lb (460g) for the Greek bowl batch</li>
+                </ul>
+                <div class="section-header">🇬🇷 Greek Chicken Batch — cook Tuesday</div>
+                <ul class="shopping-list">
+                    <li>Nonfat Greek yogurt — 300g (tzatziki)</li>
+                    <li>Cucumbers — 2 (200g total: tzatziki + salad)</li>
+                    <li>Red onion — 1 small</li>
+                    <li>Kalamata olives 30g, feta 45g</li>
+                    <li>Lemons, fresh dill, garlic, dried oregano</li>
+                </ul>
+                <div class="section-header">🌿 Larb Batch — cook Sunday</div>
+                <ul class="shopping-list">
+                    <li>Fresh mint (20g) and cilantro (20g)</li>
+                    <li>Green onions (30g), shallots or red onion (70g)</li>
+                    <li>Butter lettuce or romaine (for cups)</li>
+                    <li>Fish sauce, limes, unsweetened coconut flakes</li>
+                    <li>Monkfruit sweetener, Thai chili flakes</li>
+                </ul>
+                <div class="section-header">🥔 Carbs &amp; Fruit</div>
+                <ul class="shopping-list">
+                    <li>Yellow potatoes ~1.5 lbs</li>
+                    <li>Rolled oats</li>
+                    <li>5 bananas (pre-workout + oat bowls)</li>
+                    <li>3 apples</li>
+                    <li>Honey</li>
+                </ul>
+                <div class="section-header">🎒 Packable Snacks</div>
+                <ul class="shopping-list">
+                    <li><strong>Nonfat Greek yogurt — large tub (~3 kg/week)</strong> — 400g per weekday snack, plus 300g for the tzatziki batch</li>
+                    <li>Optional rotation: tuna pouches, cottage cheese, or an extra chicken portion</li>
+                    <li><strong>Backup only:</strong> Quest bars and CorePower Pro shakes — for days that get away from you, not the default</li>
+                </ul>
+                <div class="section-header">🥦 Produce</div>
+                <ul class="shopping-list">
+                    <li>Asparagus 1–2 bunches, string beans</li>
+                </ul>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>Thursday Top-Up</span><span class="badge">Covers Sat–Sun</span></div>
+                <div class="section-header">🥩 Proteins</div>
+                <ul class="shopping-list">
+                    <li>Chicken breast ~1.0 lb (weekend lunches)</li>
+                    <li>Ground beef 93% lean — <strong>1 pack</strong>, only if you trained twice midweek</li>
+                    <li style="color:#94a3b8;font-size:13px;">↳ Two packs usually covers the week. Skip this unless dinners ran short</li>
+                </ul>
+                <div class="section-header">🥔 Carbs &amp; Fruit</div>
+                <ul class="shopping-list">
+                    <li>Jasmine rice (dry)</li>
+                    <li>4 bananas — weekend sessions use two per day (pre-workout + oat bowl)</li>
+                    <li>2 apples</li>
+                    <li>Yellow potatoes ~0.5 lb</li>
+                </ul>
+                <div class="section-header">🥦 Fresh Vegetables</div>
+                <ul class="shopping-list">
+                    <li>2 bunches fresh broccoli</li>
+                    <li>String beans 8 oz</li>
+                    <li>Spring mix, cucumber (rest day tuna salad)</li>
+                </ul>
+                <div class="section-header">🥫 Pantry</div>
+                <ul class="shopping-list">
+                    <li>Canned tuna — 2 cans</li>
+                    <li>Almond Breeze Unsweetened</li>
+                    <li>Olive oil, light vinaigrette</li>
+                </ul>
+                <div class="section-header" style="color: #fcd34d;">📦 Monthly (Buy Once)</div>
+                <ul class="shopping-list">
+                    <li>Protein powder (2–3 containers)</li>
+                    <li>Fish oil softgels</li>
+                    <li>Psyllium husk — <em>rest days only now, never pre-training</em></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════ PREP ══ -->
+    <div id="prep" class="panel">
+        <div class="section-intro"><strong>🥘 Two-batch cadence:</strong> Splitting the week across two cooks means nothing sits in the fridge past day four, and you get variety without extra shopping.</div>
+
+        <div class="card" style="margin-bottom:20px;">
+            <div class="card-title"><span>The Weekly Rhythm</span><span class="badge">Follow This</span></div>
+            <div class="grid-layout" style="gap:14px;">
+                <div class="meal-row">
+                    <div class="meal-meta">Sunday — the big cook (~60 min)</div>
+                    <div class="meal-name">Larb batch + beef + eggs</div>
+                    <div class="meal-ingredients">Larb splits into 3 portions covering <strong>Mon, Tue, Wed</strong> lunches. Brown the second beef pack and hard-boil a dozen-plus eggs while the larb cools — those eggs are every non-training breakfast.</div>
+                </div>
+                <div class="meal-row" style="border-left-color:#34d399;">
+                    <div class="meal-meta">Tuesday — the short cook (~35 min)</div>
+                    <div class="meal-name">Greek chicken batch</div>
+                    <div class="meal-ingredients">Roast, portion, done. Splits into 3 covering <strong>Thu, Fri</strong> lunches with one spare for Saturday or a missed meal.</div>
+                </div>
+            </div>
+            <div class="ok-box" style="margin-top:12px;">✅ <strong>Why this split:</strong> larb is best inside 3–4 days, so a Sunday batch stretched to Friday strands the last portion. Cooking chicken Tuesday means every lunch you eat is within four days of cooking — and Wednesday's the only day you'd ever have both in the fridge.</div>
+        </div>
+        <div class="grid-layout">
+            <div class="card">
+                <div class="card-title"><span>Sunday Prep (~60 min)</span><span class="badge">Covers Mon–Wed</span></div>
+                <div class="prep-step">
+                    <div class="prep-step-title">1. Thai Beef Larb — full batch (~25 min)</div>
+                    <ul class="prep-list">
+                        <li>Toast 15g coconut flakes in a dry sprayed skillet, 2–3 min, stirring constantly — pull the moment it goes golden</li>
+                        <li>Brown <strong>one full pack</strong> (605g) of 93% lean over medium, breaking it fine, 5–6 min — the recipe is scaled to use the whole pack, no leftovers to deal with</li>
+                        <li><strong>Off heat</strong>, add 45g fish sauce, 38g lime juice, 5g monkfruit, 4–6g chili flakes</li>
+                        <li>Cool 2–3 min, then fold in shallots, mint, cilantro, green onions, toasted coconut</li>
+                        <li><strong>Divide into 3 containers (250g each)</strong> → three weekday lunches</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">2. Brown Dinner Beef — the second pack</div>
+                    <ul class="prep-list">
+                        <li>Second full pack (605g) in a skillet, medium-high, 8–10 min. Still drain it — leaner, but not dry</li>
+                        <li>605g raw cooks down to roughly <strong>480g</strong>, which portions into <strong>3 × 140g dinner blocks</strong> with a little left over</li>
+                        <li>Those 3 blocks cover Sat, Sun, and one weekday training dinner</li>
+                        <li>Scrape the extra ~60g into a container — it's a free topper for a salad or the spare Greek bowl</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">3. Hard-Boil Eggs — this is breakfast now</div>
+                    <ul class="prep-list">
+                        <li>Boil 12–16 eggs: cover with water, bring to a boil, kill the heat, cover 11 min</li>
+                        <li>Straight into an ice bath for 5 min — this is what makes them peel cleanly</li>
+                        <li><strong>Leave shells on until you eat them.</strong> Peeled eggs go rubbery in 2 days; unpeeled keep a week</li>
+                        <li>4 per breakfast on every non-training day, plus spares for a skipped meal</li>
+                    </ul>
+                </div>
+                <div class="ok-box">✅ Three portions, three days — Mon/Tue/Wed. Nothing gets pushed past day four now that Tuesday's chicken covers the back half of the week.</div>
+                <div class="ok-box">🥩 <strong>Beef math:</strong> your packs are 1.333 lb (605g). Pack 1 goes entirely into the larb — the recipe was built around that exact weight. Pack 2 browns down to ~480g, which is 3 dinner portions. Two packs is the standard week; buy a third only if you hit the gym twice midweek <em>and</em> both weekend days.</div>
+                <div class="ok-box">✅ Lettuce cups stay separate. Pack the larb in the container and the leaves in a bag — assembling early makes them weep and go limp by noon.</div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>Tuesday Prep — Greek Chicken (~35 min)</span><span class="badge">Covers Thu–Fri</span></div>
+                <div class="prep-step">
+                    <div class="prep-step-title">1. Marinate &amp; Roast the Chicken (460g raw)</div>
+                    <ul class="prep-list">
+                        <li>Toss 460g raw chicken breast with 15g olive oil, juice of 1 lemon, 3 cloves minced garlic, 2 tsp dried oregano, salt and pepper</li>
+                        <li>Marinate 20 min while you build everything else — longer is fine but not required</li>
+                        <li>Roast 400°F for 18–22 min until 165°F internal. <strong>Rest 10 min before slicing</strong> or it dries out in the container</li>
+                        <li>Slice and portion into 3 containers (~115g cooked each)</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">2. Tzatziki (300g nonfat Greek yogurt)</div>
+                    <ul class="prep-list">
+                        <li>Grate 100g cucumber, then <strong>squeeze it dry in a towel</strong> — skip this and the sauce turns to water by Wednesday</li>
+                        <li>Stir into 300g nonfat Greek yogurt with 1 clove garlic, chopped dill, lemon juice, salt</li>
+                        <li>Portion 100g into <strong>separate small containers</strong>, not into the bowl</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">3. Salad Component</div>
+                    <ul class="prep-list">
+                        <li>Chop 100g cucumber and 50g red onion</li>
+                        <li>Add 30g kalamata olives and 45g crumbled feta, split across the 3 containers</li>
+                        <li>No dressing — the tzatziki is the dressing when you assemble at lunch</li>
+                    </ul>
+                </div>
+                <div class="warn-box">⚠️ Pack tzatziki separately every time. Chicken and salad hold 4–5 days; yogurt sauce sitting on cucumber does not.</div>
+                <div class="ok-box">✅ Third portion is your buffer — use it Saturday, or as backup if a weekday meal gets skipped. Chicken and salad hold 4–5 days, so it keeps comfortably.</div>
+            </div>
+            <div class="card">
+                <div class="card-title"><span>Weekend Cooking</span><span class="badge">Fresh, Same-Day</span></div>
+                <div class="prep-step">
+                    <div class="prep-step-title">🍗 Chicken (Sat/Sun lunch)</div>
+                    <ul class="prep-list">
+                        <li>Bake at 375°F for 22–25 min, seasoned with salt, pepper, garlic powder</li>
+                        <li>Portion to 151g cooked. Cook Saturday, covers both weekend lunches</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">🍚 Jasmine Rice</div>
+                    <ul class="prep-list">
+                        <li>80g dry in 1.3 cups water → boil, cover, simmer 15 min, rest 5 min</li>
+                        <li>Yields two 115g cooked portions</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">🥔 Yellow Potatoes</div>
+                    <ul class="prep-list">
+                        <li>Weigh raw, cut into 1–1.5 inch chunks, skin on</li>
+                        <li>Air-fry 400°F for 18 min, shake halfway (170g raw → 135g cooked)</li>
+                    </ul>
+                </div>
+                <div class="prep-step">
+                    <div class="prep-step-title">🥦 Vegetables — never batch</div>
+                    <ul class="prep-list">
+                        <li>Broccoli: air-fry 380°F, 6–8 min, until bright green</li>
+                        <li>Asparagus: air-fry 390°F, 7 min. Store raw in the crisper</li>
+                        <li>String beans: boil in salted water exactly 4 min</li>
+                    </ul>
+                </div>
+                <div class="ok-box">Weekend mornings are the one time you're not rushing. Pre-workout banana at 7:00, train at 8:00, oat bowl at 9:30 — no prep required for any of it.</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">Recomp Plan — Interactive Logger · Sat Legs + Sun Full Upper (anchors) · Push &amp; Pull floating · Maintenance calories, protein held at ~160g</div>
+
+</div><!-- /container -->
+
+<script>
+// ─────────────────────────────────────────────────────────────
+//  CONSTANTS
+// ─────────────────────────────────────────────────────────────
+const BW = 145; // bodyweight lbs
+
+// ─────────────────────────────────────────────────────────────
+//  WORKOUT DATA
+// ─────────────────────────────────────────────────────────────
+const WORKOUTS = {
+    sat: {
+        title: 'Saturday — Heavy Legs (Anchor)',
+        exercises: [
+            { name:'Leg Press',                  reps:'6-8',   pyramid:true,  drop:20, backoff:true },
+            { name:'Seated Leg Curl',            reps:'10-15', pyramid:false, drop:20 },
+            { name:'Lying Leg Curl',             reps:'10-15', pyramid:false, drop:20 },
+            { name:'Leg Extension',              reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Glute Machine',              reps:'10-15', pyramid:false, drop:15 },
+            { name:'Back Extensions',            reps:'12-15', pyramid:false, drop:0  },
+            { name:'Hip Abductor Machine',       reps:'12-15', pyramid:false, drop:15 },
+            { name:'Hip Adductor Machine',       reps:'12-15', pyramid:false, drop:15 },
+            { name:'Calf Raises',                reps:'10-15', pyramid:false, drop:15 },
+            { name:'Cable Lateral Raise',        reps:'12-15', pyramid:false, drop:15, backoff:true },
+            // ── Core finisher (same on every day) — fill in only what you do ──
+            { name:'Torso Rotations',            reps:'10-15', pyramid:false, drop:15 },
+            { name:'Myotatic Crunches',          reps:'10-12', pyramid:false, drop:15 },
+            { name:'Hanging Leg Raises',         reps:'12-15', pyramid:false, drop:0,  bodyweight:true },
+            { name:'Ab Wheel',                   reps:'8-12',  pyramid:false, drop:0,  bodyweight:true },
+        ]
+    },
+    sun: {
+        title: 'Sunday — Full Upper (Anchor)',
+        exercises: [
+            { name:'Machine Bench Press',        reps:'6-10',  pyramid:true,  drop:20, backoff:true },
+            { name:'Barbell Bench Press',        reps:'6-10',  pyramid:true,  drop:20, backoff:true },   // log whichever press you do
+            { name:'Lat Pulldown',               reps:'8-10',  pyramid:true,  drop:20, backoff:true },
+            { name:'DB Shoulder Press',          reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Incline DB Press',           reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Pec Dec',                    reps:'10-15', pyramid:false, drop:15 },
+            { name:'Single-Arm Cable Pulldown',  reps:'10-12', pyramid:false, drop:20 },
+            { name:'Chest-Supported Row',        reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Rear Delt Cable Fly',        reps:'12-15', pyramid:false, drop:15 },
+            { name:'Cable External Rotation',    reps:'12-15', pyramid:false, drop:0  },
+            { name:'Cable Lateral Raise',        reps:'12-15', pyramid:false, drop:15, backoff:true },
+            { name:'Straight Bar Pushdowns',     reps:'10-12', pyramid:false, drop:20 },
+            { name:'Cable EZ Curl',              reps:'10-12', pyramid:false, drop:20 },
+            { name:'Wrist Curls',                reps:'12-20', pyramid:false, drop:10 },
+            { name:'Wrist Extensions',           reps:'12-20', pyramid:false, drop:10 },
+            // ── Core finisher (same on every day) — fill in only what you do ──
+            { name:'Torso Rotations',            reps:'10-15', pyramid:false, drop:15 },
+            { name:'Myotatic Crunches',          reps:'10-12', pyramid:false, drop:15 },
+            { name:'Hanging Leg Raises',         reps:'12-15', pyramid:false, drop:0,  bodyweight:true },
+            { name:'Ab Wheel',                   reps:'8-12',  pyramid:false, drop:0,  bodyweight:true },
+        ]
+    },
+    push: {
+        title: 'Push Day — Floating',
+        exercises: [
+            { name:'Machine Bench Press',        reps:'6-10',  pyramid:true,  drop:20, backoff:true },
+            { name:'Barbell Bench Press',        reps:'6-10',  pyramid:true,  drop:20, backoff:true },   // log whichever press you do
+            { name:'DB Shoulder Press',          reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Incline DB Press',           reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Pec Dec',                    reps:'10-15', pyramid:false, drop:15 },
+            { name:'Cable Lateral Raise',        reps:'12-15', pyramid:false, drop:15, backoff:true },
+            { name:'Cable External Rotation',    reps:'12-15', pyramid:false, drop:0  },
+            { name:'Straight Bar Pushdowns',     reps:'10-12', pyramid:false, drop:20 },
+            // ── Core finisher (same on every day) — fill in only what you do ──
+            { name:'Torso Rotations',            reps:'10-15', pyramid:false, drop:15 },
+            { name:'Myotatic Crunches',          reps:'10-12', pyramid:false, drop:15 },
+            { name:'Hanging Leg Raises',         reps:'12-15', pyramid:false, drop:0,  bodyweight:true },
+            { name:'Ab Wheel',                   reps:'8-12',  pyramid:false, drop:0,  bodyweight:true },
+        ]
+    },
+    pull: {
+        title: 'Pull Day — Floating',
+        exercises: [
+            { name:'Assisted Pull-Ups',          reps:'6-10',  pyramid:false, drop:0,  pullup:true },
+            { name:'Single-Arm Cable Pulldown',  reps:'10-12', pyramid:false, drop:20 },
+            { name:'Cable Row',                  reps:'8-12',  pyramid:false, drop:15 },
+            { name:'Back Extensions',            reps:'12-15', pyramid:false, drop:0  },
+            { name:'Rear Delt Cable Fly',        reps:'12-15', pyramid:false, drop:15 },
+            { name:'Cable Lateral Raise',        reps:'12-15', pyramid:false, drop:15, backoff:true },
+            { name:'Rope Hammer Curl',           reps:'12-15', pyramid:false, drop:15 },
+            { name:'Incline DB Curl',            reps:'10-12', pyramid:false, drop:15 },
+            { name:'Wrist Curls',                reps:'12-20', pyramid:false, drop:10 },
+            { name:'Wrist Extensions',           reps:'12-20', pyramid:false, drop:10 },
+            // ── Core finisher (same on every day) — fill in only what you do ──
+            { name:'Torso Rotations',            reps:'10-15', pyramid:false, drop:15 },
+            { name:'Myotatic Crunches',          reps:'10-12', pyramid:false, drop:15 },
+            { name:'Hanging Leg Raises',         reps:'12-15', pyramid:false, drop:0,  bodyweight:true },
+            { name:'Ab Wheel',                   reps:'8-12',  pyramid:false, drop:0,  bodyweight:true },
+        ]
+    },
+    legs2: {
+        title: 'Legs — Floating (second session)',
+        exercises: [
+            { name:'Leg Press (Volume)',         reps:'8-12',  pyramid:false, drop:20, backoff:true },
+            { name:'Seated Leg Curl',            reps:'10-15', pyramid:false, drop:20 },
+            { name:'Leg Extension (Volume)',     reps:'10-15', pyramid:false, drop:20 },
+            { name:'Glute Machine',              reps:'10-15', pyramid:false, drop:15 },
+            { name:'Back Extensions',            reps:'12-15', pyramid:false, drop:0  },
+            { name:'Calf Raises',                reps:'10-15', pyramid:false, drop:15 },
+            // ── Core finisher (same on every day) — fill in only what you do ──
+            { name:'Torso Rotations',            reps:'10-15', pyramid:false, drop:15 },
+            { name:'Myotatic Crunches',          reps:'10-12', pyramid:false, drop:15 },
+            { name:'Hanging Leg Raises',         reps:'12-15', pyramid:false, drop:0,  bodyweight:true },
+            { name:'Ab Wheel',                   reps:'8-12',  pyramid:false, drop:0,  bodyweight:true },
+        ]
+    },
+    upper2: {
+        title: 'Upper 2 — Floating (shorter session)',
+        exercises: [
+            { name:'Machine Bench Press',        reps:'6-10',  pyramid:true,  drop:0,  backoff:true },   // no drop on the floater — save it for Sunday
+            { name:'Barbell Bench Press',        reps:'6-10',  pyramid:true,  drop:0,  backoff:true },   // log whichever press you do
+            { name:'Assisted Pull-Ups',          reps:'6-10',  pyramid:false, drop:0,  pullup:true },
+            { name:'DB Shoulder Press',          reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Incline DB Press',           reps:'8-10',  pyramid:false, drop:20 },
+            { name:'Pec Dec',                    reps:'10-15', pyramid:false, drop:15 },
+            { name:'Cable Row',                  reps:'8-12',  pyramid:false, drop:15 },
+            { name:'Rear Delt Cable Fly',        reps:'12-15', pyramid:false, drop:15 },
+            { name:'Cable External Rotation',    reps:'12-15', pyramid:false, drop:0  },
+            { name:'Cable Lateral Raise',        reps:'12-15', pyramid:false, drop:15, backoff:true },
+            { name:'Straight Bar Pushdowns',     reps:'10-12', pyramid:false, drop:20 },
+            { name:'Rope Hammer Curl',           reps:'12-15', pyramid:false, drop:15 },
+            { name:'Incline DB Curl',            reps:'10-12', pyramid:false, drop:15 },
+            // ── Core finisher (same on every day) — fill in only what you do ──
+            { name:'Torso Rotations',            reps:'10-15', pyramid:false, drop:15 },
+            { name:'Myotatic Crunches',          reps:'10-12', pyramid:false, drop:15 },
+            { name:'Hanging Leg Raises',         reps:'12-15', pyramid:false, drop:0,  bodyweight:true },
+            { name:'Ab Wheel',                   reps:'8-12',  pyramid:false, drop:0,  bodyweight:true },
+        ]
+    },
+};
+
+// ─────────────────────────────────────────────────────────────
+//  ID HELPERS
+// ─────────────────────────────────────────────────────────────
+function escapeHTML(s) {
+    return String(s).replace(/[&<>"']/g, c => (
+        { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+    ));
+}
+
+function slug(day, name) {
+    return `${day}__${name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  BUILD UI
+// ─────────────────────────────────────────────────────────────
+function buildWorkouts() {
+    Object.entries(WORKOUTS).forEach(([day, data]) => {
+        const container = document.getElementById(`${day}-ex`);
+        data.exercises.forEach(ex => {
+            container.appendChild(buildExerciseBlock(day, ex));
+        });
+    });
+}
+
+function buildExerciseBlock(day, ex) {
+    const id = slug(day, ex.name);
+    const div = document.createElement('div');
+    div.className = 'exercise-block';
+    div.id = `block-${id}`;
+
+    const [rMin, rMax] = ex.reps.split('-').map(Number);
+
+    if (ex.pullup) {
+        div.innerHTML = buildPullupHTML(day, ex, id);
+    } else if (ex.bodyweight) {
+        div.innerHTML = buildBodyweightHTML(day, ex, id, rMax);
+    } else {
+        div.innerHTML = buildStandardHTML(day, ex, id, rMin, rMax);
+    }
+
+    return div;
+}
+
+// Heavy compounds where phosphocreatine recovery, not heart rate, is the limiter.
+// Everything else recovers fine on 60-90s.
+const LONG_REST = new Set([
+    'Leg Press', 'Machine Bench Press', 'Lat Pulldown', 'Chest-Supported Row',
+    'DB Shoulder Press', 'Incline DB Press'
+]);
+
+function restHint(ex) {
+    const heavy = LONG_REST.has(ex.name);
+    const top = heavy ? '2–3 min' : '60–90 sec';
+    let parts = [`Rest before top set: <strong>${top}</strong>`];
+    if (ex.backoff) parts.push(`before back-off: <strong>${heavy ? '2 min' : '90 sec'}</strong>`);
+    if (ex.drop > 0) parts.push(`before drop: <strong>&lt;60 sec</strong>`);
+    return `<div class="rest-hint">⏱ ${parts.join(' &nbsp;·&nbsp; ')}</div>`;
+}
+
+function buildStandardHTML(day, ex, id, rMin, rMax) {
+    const dropHint = ex.drop > 0 ? `Set 2 drops ~${ex.drop}% from Set 1 weight` : 'No drop set';
+
+    return `
+        <div class="exercise-name">${ex.name}${combinedBadge(ex.name)}</div>
+        <div class="rep-target">Target: ${ex.reps} reps${ex.pyramid ? ' &nbsp;|&nbsp; Pyramid warmup' : ''}</div>
+        ${restHint(ex)}
+
+        ${ex.pyramid ? `
+        <div class="pyramid-section">
+            <div class="pyramid-header">📐 Pyramid Warmup — auto-calculates from Set 1 weight below</div>
+            <div class="pyramid-grid" id="pyr-${id}">
+                <div class="pyramid-row"><span class="pyramid-pct">Set 1 · 40%</span><span class="pyramid-weight">—</span><span class="pyramid-reps">× 10 reps</span></div>
+                <div class="pyramid-row"><span class="pyramid-pct">Set 2 · 60%</span><span class="pyramid-weight">—</span><span class="pyramid-reps">× 6 reps</span></div>
+                <div class="pyramid-row"><span class="pyramid-pct">Set 3 · 80%</span><span class="pyramid-weight">—</span><span class="pyramid-reps">× 3 reps</span></div>
+                <div class="pyramid-row"><span class="pyramid-pct">Set 4 · 90%</span><span class="pyramid-weight">—</span><span class="pyramid-reps">× 1-2 reps</span></div>
+            </div>
+        </div>` : ''}
+
+        <div class="set-section">
+            <div class="set-row">
+                <span class="set-label">Set 1 (Top):</span>
+                <input type="number" id="s1w-${id}" placeholder="lbs" min="0" oninput="onSet1Weight('${id}',${ex.drop},${ex.pyramid},${!!ex.backoff})">
+                <span class="unit-label">lbs ×</span>
+                <input type="number" id="s1r-${id}" placeholder="reps" min="1" max="50" oninput="onSet1Reps('${id}',${rMax},${rMin})">
+                <span class="unit-label">reps</span>
+            </div>
+
+            ${ex.backoff ? `
+            <div class="backoff-calc" id="backoff-${id}">Enter Set 1 weight → back-off target calculates here</div>
+            <div class="set-row">
+                <span class="set-label">Set 2 (Back-off):</span>
+                <input type="number" id="sbw-${id}" placeholder="lbs" min="0">
+                <span class="unit-label">lbs ×</span>
+                <input type="number" id="sbr-${id}" placeholder="reps" min="1" max="50">
+                <span class="unit-label">reps</span>
+            </div>` : ''}
+
+            ${ex.drop > 0 ? `
+            <div class="drop-calc" id="drop-${id}">Enter Set 1 weight → drop set range calculates here</div>
+            <div class="set-row">
+                <span class="set-label">${ex.backoff ? 'Set 3 (Drop)' : 'Set 2 (Drop)'}:</span>
+                <input type="number" id="s2w-${id}" placeholder="lbs" min="0">
+                <span class="unit-label">lbs ×</span>
+                <input type="number" id="s2r-${id}" placeholder="reps" min="1" max="50">
+                <span class="unit-label">reps</span>
+            </div>` : ''}
+
+            <div class="set-row" style="margin-top: 10px;">
+                <input type="text" id="note-${id}" placeholder="Notes (equipment swap, form notes, etc.)" style="width: 100%; padding: 6px 8px; font-size: 13px; background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 3px;">
+            </div>
+
+            <div id="prev-${id}"></div>
+            <div id="ceiling-${id}"></div>
+        </div>
+
+
+    `;
+}
+
+function buildBodyweightHTML(day, ex, id, rMax) {
+    // Bodyweight movements track sets and reps only — there is no load to enter,
+    // so progression is driven purely by reps.
+    return `
+        <div class="exercise-name">${ex.name}${combinedBadge(ex.name)}</div>
+        <div class="rep-target">Bodyweight &nbsp;|&nbsp; 2 sets &nbsp;|&nbsp; Target: ${ex.reps} reps per set</div>
+        <div class="rest-hint">⏱ Rest between sets: <strong>60–90 sec</strong></div>
+
+        <div class="set-section">
+            <div class="set-row">
+                <span class="set-label">Set 1:</span>
+                <input type="number" id="s1r-${id}" placeholder="reps" min="1" max="60" oninput="onSet1Reps('${id}',${rMax})">
+                <span class="unit-label">reps</span>
+            </div>
+            <div class="set-row">
+                <span class="set-label">Set 2:</span>
+                <input type="number" id="s2r-${id}" placeholder="reps" min="1" max="60">
+                <span class="unit-label">reps</span>
+            </div>
+
+            <div class="set-row" style="margin-top: 10px;">
+                <input type="text" id="note-${id}" placeholder="Notes (form notes, tempo, etc.)" style="width: 100%; padding: 6px 8px; font-size: 13px; background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 3px;">
+            </div>
+
+            <div id="prev-${id}"></div>
+            <div id="ceiling-${id}"></div>
+        </div>
+    `;
+}
+
+function buildPullupHTML(day, ex, id) {
+    const sets = [
+        { label:'Set 1 (Top)',    placeholder:'60', hint:'Least assistance = hardest' },
+        { label:'Set 2 (Drop 1)', placeholder:'70', hint:'' },
+        { label:'Set 3 (Drop 2)', placeholder:'90', hint:'' },
+        { label:'Set 4 (Drop 3)', placeholder:'110', hint:'Most assistance = most volume' },
+    ];
+
+    let html = `
+        <div class="exercise-name">Assisted Pull-Ups</div>
+        <div class="rep-target">1 Top Set + 3 Progressive Drop Sets · Target: ${ex.reps} reps (top) → higher reps each drop</div>
+        <div class="set-section">
+            <div style="font-size:12px;color:#94a3b8;margin-bottom:10px;">Assistance weight INCREASES each drop (more help = more reps). Net load = ${BW} lbs BW − assistance.</div>
+        <div class="rest-hint" style="margin-top:-4px;">⏱ Rest before top set: <strong>2–3 min</strong> &nbsp;·&nbsp; between drops: <strong>&lt;60 sec</strong></div>
+    `;
+
+    sets.forEach((s, i) => {
+        const setNum = i + 1;
+        html += `
+            <div class="set-row">
+                <span class="set-label">${s.label}:</span>
+                <input type="number" id="apuw-${id}-${setNum}" placeholder="${s.placeholder}" min="0" oninput="onApuWeight('${id}',${setNum})">
+                <span class="unit-label">lbs assist ×</span>
+                <input type="number" id="apur-${id}-${setNum}" placeholder="reps" min="1" max="30">
+                <span class="unit-label">reps</span>
+            </div>
+            <div class="net-load-calc" id="apu-net-${id}-${setNum}">Enter assistance weight</div>
+        `;
+    });
+
+    html += `
+            <div class="set-row" style="margin-top: 10px;">
+                <input type="text" id="note-${id}" placeholder="Notes (band strength, form notes, etc.)" style="width: 100%; padding: 6px 8px; font-size: 13px; background: #0f172a; border: 1px solid #334155; color: #f1f5f9; border-radius: 3px;">
+            </div>
+            <div id="prev-${id}"></div>
+        </div>
+    `;
+
+    return html;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  REAL-TIME CALCULATION HANDLERS
+// ─────────────────────────────────────────────────────────────
+// Back-off load as a fraction of the top set.
+const BACKOFF_PCT = 0.85;
+
+function onSet1Weight(id, dropPct, hasPyramid, hasBackoff) {
+    const w = parseFloat(document.getElementById(`s1w-${id}`).value) || 0;
+
+    // Back-off set. Raised from 80% to 85% — at 80% the back-off was
+    // landing at the bottom of its rep range while still feeling easy.
+    if (hasBackoff) {
+        const boDiv = document.getElementById(`backoff-${id}`);
+        if (boDiv) {
+            boDiv.textContent = w > 0
+                ? `Back-off Set (~${Math.round(BACKOFF_PCT*100)}% of top): aim for ${Math.round(w * BACKOFF_PCT)} lbs × 10-12 reps`
+                : 'Enter Set 1 weight → back-off target calculates here';
+        }
+    }
+
+    // Pyramid warmup
+    if (hasPyramid) {
+        const pyrDiv = document.getElementById(`pyr-${id}`);
+        if (pyrDiv) {
+            const rows = pyrDiv.querySelectorAll('.pyramid-row');
+            const pcts = [0.40, 0.60, 0.80, 0.90];
+            rows.forEach((row, i) => {
+                const wSpan = row.querySelector('.pyramid-weight');
+                wSpan.textContent = w > 0 ? `${Math.round(w * pcts[i])} lbs` : '—';
+            });
+        }
+    }
+
+    // Drop set range.
+    // Chains off the PRECEDING set, not the top set. On a pyramid+back-off
+    // exercise the drop is the third working set, so basing it on the top
+    // set stacks two reductions' worth of load onto an already-fatigued
+    // movement — which is why it kept reading too heavy.
+    if (dropPct > 0) {
+        const dropDiv = document.getElementById(`drop-${id}`);
+        if (dropDiv && w > 0) {
+            const base = hasBackoff ? w * BACKOFF_PCT : w;
+            const target = base * (1 - dropPct / 100);
+            const lo = Math.max(0, Math.round(target - 5));
+            const hi = Math.round(target + 5);
+            const from = hasBackoff ? 'off back-off' : 'off top set';
+            dropDiv.textContent = `Drop Set (~${dropPct}% ${from}): aim for ${lo}–${hi} lbs`;
+        } else if (dropDiv) {
+            dropDiv.textContent = 'Enter Set 1 weight → drop set range calculates here';
+        }
+    }
+}
+
+// Rep-range feedback runs in BOTH directions. It previously only flagged the
+// ceiling, so the app could tell you to add weight but never to take it off —
+// a top set that came in UNDER range read as silence rather than a signal.
+function onSet1Reps(id, maxReps, minReps) {
+    const reps = parseInt(document.getElementById(`s1r-${id}`).value) || 0;
+    const ceilingDiv = document.getElementById(`ceiling-${id}`);
+    if (!ceilingDiv) return;
+
+    if (reps >= maxReps && reps > 0) {
+        ceilingDiv.className = 'rep-ceiling-hit';
+        ceilingDiv.textContent = `✅ Rep ceiling hit (${reps} reps)! Increase weight next session.`;
+    } else if (minReps && reps > 0 && reps < minReps) {
+        ceilingDiv.className = 'rep-floor-miss';
+        ceilingDiv.textContent = `⚠️ Below range (${reps} vs ${minReps}–${maxReps}) — too heavy. Drop ~5% next session.`;
+    } else {
+        ceilingDiv.textContent = '';
+        ceilingDiv.className = '';
+    }
+}
+
+function onApuWeight(id, setNum) {
+    const w = parseFloat(document.getElementById(`apuw-${id}-${setNum}`).value) || 0;
+    const netDiv = document.getElementById(`apu-net-${id}-${setNum}`);
+    if (!netDiv) return;
+    if (w > 0) {
+        const net = BW - w;
+        const pct = ((net / BW) * 100).toFixed(1);
+        netDiv.textContent = `Net load: ${BW} − ${w} = ${net} lbs (${pct}% of BW)`;
+    } else {
+        netDiv.textContent = 'Enter assistance weight';
+    }
+}
+
+// ─────────────────────────────────────────────────────────────
+//  IN-PROGRESS DRAFTS  (fixes: a refresh mid-session wiped inputs)
+//  Every keystroke inside a day panel is mirrored to localStorage
+//  under its own draft key. Nothing here touches the permanent log
+//  or the "last logged" references — a draft is scratch paper that
+//  survives a reload, and it is thrown away the moment you Save.
+// ─────────────────────────────────────────────────────────────
+const DRAFT_PREFIX = 'cp_draft_';
+
+function draftKey(day) { return `${DRAFT_PREFIX}${day}`; }
+
+function saveDraft(day) {
+    const container = document.getElementById(`${day}-ex`);
+    if (!container) return;
+    const values = {};
+    container.querySelectorAll('input').forEach(el => {
+        if (el.id && el.value !== '') values[el.id] = el.value;
+    });
+    try {
+        if (Object.keys(values).length === 0) {
+            localStorage.removeItem(draftKey(day));
+        } else {
+            localStorage.setItem(draftKey(day), JSON.stringify({
+                ts: Date.now(),
+                date: localDate(),
+                values
+            }));
+        }
+    } catch (e) { /* storage full or blocked — logging still works, just no draft */ }
+    updateDraftBanner(day);
+}
+
+function clearDraft(day) {
+    localStorage.removeItem(draftKey(day));
+    updateDraftBanner(day);
+}
+
+function readDraft(day) {
+    try {
+        const raw = localStorage.getItem(draftKey(day));
+        return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+}
+
+function restoreDraft(day) {
+    const draft = readDraft(day);
+    if (!draft || !draft.values) return false;
+
+    const touchedWeights = [];
+    Object.entries(draft.values).forEach(([id, val]) => {
+        const el = document.getElementById(id);
+        if (!el) return;              // exercise removed from the program since
+        el.value = val;
+        if (id.startsWith('s1w-') || id.startsWith('s1r-')) touchedWeights.push(el);
+    });
+
+    // Re-fire the handlers so pyramid, back-off and drop-set targets recalculate
+    touchedWeights.forEach(el => el.dispatchEvent(new Event('input', { bubbles: true })));
+    updateDraftBanner(day);
+    return true;
+}
+
+function discardDraft(day) {
+    const container = document.getElementById(`${day}-ex`);
+    if (container) container.querySelectorAll('input').forEach(el => { el.value = ''; });
+    clearDraft(day);
+    loadAllPrevSessions();
+}
+
+function updateDraftBanner(day) {
+    const banner = document.getElementById(`draft-${day}`);
+    if (!banner) return;
+    const draft = readDraft(day);
+    if (!draft) { banner.style.display = 'none'; return; }
+    const t = new Date(draft.ts);
+    const hh = String(t.getHours()).padStart(2, '0');
+    const mm = String(t.getMinutes()).padStart(2, '0');
+    const stale = draft.date !== localDate();
+    banner.innerHTML = stale
+        ? `⚠️ Unsaved draft from <strong>${draft.date}</strong> restored — this is from a previous day. `
+          + `<button class="draft-discard" onclick="discardDraft('${day}')">Discard it</button>`
+        : `📝 Unsaved draft restored (last edit ${hh}:${mm}). It will clear when you save. `
+          + `<button class="draft-discard" onclick="discardDraft('${day}')">Discard</button>`;
+    banner.style.display = 'block';
+}
+
+// One delegated listener per day panel — cheaper than wiring every input,
+// and it automatically covers exercises added to the program later.
+function wireDraftAutosave() {
+    Object.keys(WORKOUTS).forEach(day => {
+        const container = document.getElementById(`${day}-ex`);
+        if (!container) return;
+        container.addEventListener('input', () => saveDraft(day));
+    });
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SAVE & LOAD  (localStorage)
+// ─────────────────────────────────────────────────────────────
+// Exercises are keyed by NAME only. Shared movements (e.g. Cable Lateral Raise on
+// all four days, DB Shoulder Press on Sun + Push) carry one running history,
+// which is what you want now that there is a single leg day and no duplicate
+// rep-range splits.
+// ─────────────────────────────────────────────────────────────
+//  GYMS — every saved session records where it happened.
+//  Machines are geared differently between facilities, so a weight is
+//  only strictly comparable to another weight at the SAME gym. The
+//  calibration panel estimates how they relate once data allows.
+// ─────────────────────────────────────────────────────────────
+// ── LOAD ENTRY CONVENTIONS ────────────────────────────────────
+// COMBINED — two stacks or two dumbbells worked at once. Log the TOTAL:
+//            two 20 lb dumbbells is entered as 40.
+// PER SIDE  — a single stack, but worked one side at a time. Log that
+//            side's load, not a doubled figure.
+// Unlisted  — single stack, bar or machine. Log what's on it.
+//            Rope Hammer Curl belongs here: one stack, pulled together.
+const COMBINED_LIFTS = new Set([
+    'DB Shoulder Press',
+    'Incline DB Press',
+    'Incline DB Curl',
+    'Cable Lateral Raise',
+    'Rear Delt Cable Fly'
+]);
+const PER_SIDE_LIFTS = new Set([
+    'Cable External Rotation',
+    'Wrist Curls',
+    'Wrist Extensions',
+    'Single-Arm Cable Pulldown'
+]);
+function combinedBadge(name){
+    if (COMBINED_LIFTS.has(name))
+        return ' <span class="combined-badge" title="Two stacks or two dumbbells — log the combined total">2× combined</span>';
+    if (PER_SIDE_LIFTS.has(name))
+        return ' <span class="perside-badge" title="One stack, worked one side at a time — log that side\'s load">per side</span>';
+    return '';
+}
+
+const GYMS_KEY='cp_gyms', CURGYM_KEY='cp_current_gym';
+const DEFAULT_GYMS = ['Laguna YMCA','LA Fitness','Mission YMCA','Travel / Other'];
+
+function getGyms(){
+    try { const g=JSON.parse(localStorage.getItem(GYMS_KEY)); return (Array.isArray(g)&&g.length)?g:DEFAULT_GYMS.slice(); }
+    catch(e){ return DEFAULT_GYMS.slice(); }
+}
+function setGyms(l){ localStorage.setItem(GYMS_KEY, JSON.stringify(l)); }
+function currentGym(){ return localStorage.getItem(CURGYM_KEY) || getGyms()[0]; }
+function setCurrentGym(g){
+    localStorage.setItem(CURGYM_KEY,g);
+    loadAllPrevSessions();   // same-gym references depend on the selection
+    renderGymBars();
+}
+function renderGymBars(){
+    const gyms=getGyms(), cur=currentGym();
+    Object.keys(WORKOUTS).forEach(day=>{
+        const el=document.getElementById(`gymbar-${day}`); if(!el) return;
+        const opts=gyms.map(g=>`<option value="${escapeHTML(g)}"${g===cur?' selected':''}>${escapeHTML(g)}</option>`).join('');
+        el.innerHTML=`<span class="gym-label">🏋️ Training at</span>`+
+            `<select class="gym-select" onchange="setCurrentGym(this.value)">${opts}</select>`+
+            `<button class="gym-edit" onclick="editGyms()">Edit names</button>`;
+    });
+}
+function editGyms(){
+    const next=prompt('Gym names, comma separated:', getGyms().join(', '));
+    if(next===null) return;
+    const list=next.split(',').map(s=>s.trim()).filter(Boolean);
+    if(!list.length) return;
+    setGyms(list);
+    if(!list.includes(currentGym())) localStorage.setItem(CURGYM_KEY,list[0]);
+    renderGymBars(); loadAllPrevSessions(); renderCalibration(); renderHistory();
+}
+
+// LOCAL calendar date, YYYY-MM-DD.
+// toISOString() returns UTC, so anything saved after ~5 PM Pacific was being
+// stamped with tomorrow's date. Build the date from local components instead.
+function localDate(d) {
+    d = d || new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+}
+
+function lsKey(day, name) {
+    return `cp_ex_${name.replace(/\s+/g,'_')}`;
+}
+
+// Sets with a weight but no reps are almost always a card you didn't do
+// (or forgot to finish). Ask before saving them, because a weight-only entry
+// becomes that exercise's "last logged" reference.
+function weightOnlyExercises(day) {
+    const out = [];
+    WORKOUTS[day].exercises.forEach(ex => {
+        const id = slug(day, ex.name);
+        const v = k => (document.getElementById(k)?.value || '').trim();
+        const pairs = ex.pullup
+            ? [1,2,3,4].map(i => [v(`apuw-${id}-${i}`), v(`apur-${id}-${i}`)])
+            : [[v(`s1w-${id}`), v(`s1r-${id}`)], [v(`sbw-${id}`), v(`sbr-${id}`)], [v(`s2w-${id}`), v(`s2r-${id}`)]];
+        if (pairs.some(([w, r]) => w && !r)) out.push(ex.name);
+    });
+    return out;
+}
+
+function saveDay(day) {
+    const missing = weightOnlyExercises(day);
+    if (missing.length && !confirm(
+        `These have a weight but no reps:\n\n• ${missing.join('\n• ')}\n\n` +
+        `Tap Cancel to go back and fill in the reps or clear the weights. Tap OK to save anyway.`)) return;
+    const data = WORKOUTS[day];
+    const date = localDate();
+    let savedCount = 0;
+    const sessionEntries = [];
+
+    data.exercises.forEach(ex => {
+        const id = slug(day, ex.name);
+        const notes = document.getElementById(`note-${id}`)?.value || null;
+
+        let sessionData = { date, day, gym: currentGym(), sets: [], notes };
+
+        if (ex.pullup) {
+            // Assisted Pull-Ups
+            for (let i = 1; i <= 4; i++) {
+                const w = parseFloat(document.getElementById(`apuw-${id}-${i}`)?.value) || null;
+                const r = parseInt(document.getElementById(`apur-${id}-${i}`)?.value) || null;
+                if (w !== null || r !== null) {
+                    sessionData.sets.push({ set: i, assistW: w, net: w ? BW - w : null, reps: r });
+                }
+            }
+        } else {
+            // Standard exercises
+            const s1w = parseFloat(document.getElementById(`s1w-${id}`)?.value) || null;
+            const s1r = parseInt(document.getElementById(`s1r-${id}`)?.value) || null;
+            const s2w = parseFloat(document.getElementById(`s2w-${id}`)?.value) || null;
+            const s2r = parseInt(document.getElementById(`s2r-${id}`)?.value) || null;
+
+            const sbw = parseFloat(document.getElementById(`sbw-${id}`)?.value) || null;
+            const sbr = parseInt(document.getElementById(`sbr-${id}`)?.value) || null;
+
+            if (s1w || s1r) sessionData.sets.push({ set: 1, weight: s1w, reps: s1r });
+            if (sbw || sbr) sessionData.sets.push({ set: 'Back-off', weight: sbw, reps: sbr });
+            if (s2w || s2r) sessionData.sets.push({ set: ex.backoff ? 3 : 2, weight: s2w, reps: s2r });
+        }
+
+        // Only save if at least one set has data
+        // Leg exercises on Tue/Sat get per-day keys; other exercises get cross-day keys
+        if (sessionData.sets.length > 0) {
+            localStorage.setItem(lsKey(day, ex.name), JSON.stringify(sessionData));
+            sessionEntries.push({ name: ex.name, sets: sessionData.sets, notes: sessionData.notes, pullup: !!ex.pullup, gym: sessionData.gym });
+            savedCount++;
+        }
+    });
+
+    // Append a full snapshot to the running session log. lsKey() only ever holds
+    // the LATEST session per exercise (for the "match or beat" prompt); this log
+    // is the permanent record that powers the History tab.
+    if (sessionEntries.length > 0) {
+        const log = readLog();
+        log.push({ date, day, gym: currentGym(), ts: Date.now(), exercises: sessionEntries });
+        localStorage.setItem(LOG_KEY, JSON.stringify(log));
+    }
+
+    // Show confirmation
+    const conf = document.getElementById(`conf-${day}`);
+    if (conf) {
+        conf.textContent = `✅ Saved ${savedCount} exercise${savedCount !== 1 ? 's' : ''}!`;
+        conf.style.display = 'block';
+        setTimeout(() => { conf.style.display = 'none'; }, 3000);
+    }
+
+    // The session is now in permanent storage, so the scratch draft is dead weight.
+    if (savedCount > 0) {
+        const container = document.getElementById(`${day}-ex`);
+        if (container) container.querySelectorAll('input').forEach(el => { el.value = ''; });
+        clearDraft(day);
+    }
+
+    // Refresh every previous-session display across ALL days
+    loadAllPrevSessions();
+    renderHistory();
+    renderCalibration();
+}
+
+const DAY_LABELS = { sat:'Legs', sun:'Full Upper', push:'Push', pull:'Pull', legs2:'Legs 2', upper2:'Upper 2' };
+
+// Starting-point suggestions for exercises with no history yet.
+// These are DERIVED from a related lift, not sessions actually performed, so they
+// are never written to the log — putting them there would give them a date and a
+// gym, and they would feed the progression chart and the cross-gym calibration as
+// if they were real. Rendered as a visually distinct hint that disappears the
+// moment a real session is logged.
+const START_SUGGESTIONS = {
+    'Leg Press (Volume)':     { text: '~90–95 lbs for 8–12 reps',  basis: 'Saturday top set 115×8' },
+    'Leg Extension (Volume)': { text: '~55–60 lbs for 10–15 reps', basis: 'Saturday 65×12' },
+    'Barbell Bench Press':    { text: 'Top set 95 lbs (bar + 25s) × 8 · back-off ~80 × 10. Warm up on the bar: 45×10, 65×6, 85×3', basis: 'Incline DB Press 80×8 combined; machine numbers don\u2019t transfer' },
+};
+
+function renderPrevSession(day, name, id, isPullup) {
+    const prevDiv = document.getElementById(`prev-${id}`);
+    if (!prevDiv) return;
+
+    let raw = localStorage.getItem(lsKey(day, name));
+
+    // Migration: pick up data saved under the old format
+    if (!raw) {
+        const legacyKey = `cp_${day}_${name.replace(/\s+/g,'_')}`;
+        const legacyRaw = localStorage.getItem(legacyKey);
+        if (legacyRaw) {
+            raw = legacyRaw;
+            localStorage.setItem(lsKey(day, name), legacyRaw);
+            localStorage.removeItem(legacyKey);
+        }
+    }
+
+    if (!raw) {
+        const s = START_SUGGESTIONS[name];
+        prevDiv.innerHTML = s
+            ? `<div class="start-suggestion">🎯 <strong>Starting point:</strong> ${escapeHTML(s.text)}`
+              + `<span class="start-basis">Estimated from ${escapeHTML(s.basis)} — not a logged session. `
+              + `Replaced by real data after your first entry.</span></div>`
+            : '<div style="font-size:12px;color:#64748b;margin-top:8px;">No previous session logged yet.</div>';
+        return;
+    }
+
+    let data;
+    try { data = JSON.parse(raw); } catch(e) { return; }
+
+    const fromOtherDay = data.day && data.day !== day;
+    const dayTag = fromOtherDay ? ` — logged on ${DAY_LABELS[data.day] || data.day}` : '';
+    const gymTag = data.gym ? ` <span class="gym-chip">${escapeHTML(data.gym)}</span>` : '';
+    let lines = [`<strong>📊 Last logged: ${data.date}${dayTag}</strong>${gymTag}`];
+
+    if (isPullup) {
+        data.sets.forEach(s => {
+            if (s.assistW !== null && s.reps !== null)
+                lines.push(`Set ${s.set}: ${s.assistW} lbs assist (net ${s.net} lbs) × ${s.reps} reps`);
+        });
+    } else {
+        data.sets.forEach(s => {
+            if (!s.reps) return;
+            const label = (typeof s.set === 'number') ? `Set ${s.set}` : s.set;
+            // Bodyweight movements save no weight — show reps alone
+            lines.push(s.weight
+                ? `${label}: ${s.weight} lbs × ${s.reps} reps`
+                : `${label}: ${s.reps} reps`);
+        });
+    }
+
+    lines.push('<span style="font-size:11px;color:#94a3b8;">Match or beat this today.</span>');
+    prevDiv.className = 'prev-session';
+
+    // When the last session was at a different gym than the one selected,
+    // surface the latest SAME-gym session too — that is the comparable number.
+    let sameGymBlock = '';
+    const cur = currentGym();
+    if (data.gym && data.gym !== cur) {
+        const sg = lastSessionAtGym(name, cur);
+        if (sg) {
+            const sets = sg.sets.filter(s => s.reps).map(s => {
+                const label = (typeof s.set === 'number') ? `Set ${s.set}` : s.set;
+                return s.weight ? `${label}: ${s.weight}×${s.reps}` : `${label}: ${s.reps} reps`;
+            }).join(' · ');
+            sameGymBlock = `<div class="samegym"><strong>At ${escapeHTML(cur)}</strong> (${sg.date}): ${sets}</div>`;
+        } else {
+            const t = suggestedFromOtherGym(name, data, cur);
+            sameGymBlock = `<div class="samegym">No prior session at <strong>${escapeHTML(cur)}</strong> for this movement.${t}</div>`;
+        }
+    }
+
+    // Notes render as their own high-contrast block so equipment swaps
+    // can't be skimmed past when you're mid-session.
+    // Notes are equipment/setup notes, so they follow the GYM you're at, not
+    // simply the last session. Show the latest distinct notes logged for this
+    // movement at the selected gym (newest first, up to 3), from any day tab.
+    const gymNotes = notesAtGym(name, cur);
+    const noteBlock = gymNotes.length
+        ? `<div class="prev-note"><span class="prev-note-icon">📝</span><span>`
+          + `<span class="prev-note-label">${escapeHTML(cur)} notes</span>`
+          + gymNotes.map((n,i)=>`<span class="gym-note-line${i?' older':''}">${escapeHTML(n.note)} <span class="gym-note-date">${n.date}</span></span>`).join('')
+          + `</span></div>`
+        : '';
+
+    prevDiv.innerHTML = lines.join('<br>') + sameGymBlock + noteBlock;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  CROSS-GYM CALIBRATION
+//  Comparing raw top-set weight across gyms is wrong whenever the rep
+//  counts differ, so everything converts to an estimated 1RM (Epley)
+//  first and the ratio is taken on that.
+//
+//  This refuses to produce a number on thin data. Two sessions per gym
+//  per exercise is already a weak basis; one is noise with a decimal point.
+// ─────────────────────────────────────────────────────────────
+const MIN_SESSIONS_PER_GYM = 2;
+
+function e1rm(w,r){ return (!w||!r) ? null : w*(1+r/30); }
+
+function sessionE1RM(sets){
+    let best=null;
+    (sets||[]).forEach(s=>{ const v=e1rm(s.weight,s.reps); if(v!==null&&(best===null||v>best)) best=v; });
+    return best;
+}
+
+function sessionsFor(name){
+    const out=[];
+    readLog().forEach(entry=>{
+        (entry.exercises||[]).forEach(ex=>{
+            if(ex.name===name) out.push({
+                date: entry.date, day: entry.day,
+                gym: ex.gym || entry.gym || null,
+                gymAssumed: !!(ex.gymAssumed || entry.gymAssumed),
+                sets: ex.sets||[], notes: ex.notes||null
+            });
+        });
+    });
+    return out.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+}
+
+function lastSessionAtGym(name,gym){ return sessionsFor(name).find(s=>s.gym===gym)||null; }
+function notesAtGym(name,gym,max){
+    max=max||3; const seen=new Set(), out=[];
+    for(const s of sessionsFor(name)){
+        if(s.gym!==gym || !s.notes) continue;
+        const t=String(s.notes).trim(); const k=t.toLowerCase();
+        if(!t || seen.has(k)) continue;
+        seen.add(k); out.push({note:t, date:s.date});
+        if(out.length>=max) break;
+    }
+    return out;
+}
+
+function e1rmByGym(name){
+    const acc={};
+    sessionsFor(name).forEach(s=>{
+        if(!s.gym) return;
+        const v=sessionE1RM(s.sets); if(v===null) return;
+        (acc[s.gym]=acc[s.gym]||[]).push(v);
+    });
+    const out={};
+    Object.entries(acc).forEach(([g,vals])=>{
+        out[g]={n:vals.length, mean:vals.reduce((a,b)=>a+b,0)/vals.length};
+    });
+    return out;
+}
+
+// Translate a working weight between gyms. Returns null when data is too thin.
+function translateWeight(name,weight,fromGym,toGym){
+    if(fromGym===toGym) return {weight, basis:'same gym'};
+    const by=e1rmByGym(name), a=by[fromGym], b=by[toGym];
+    if(!a||!b||a.n<MIN_SESSIONS_PER_GYM||b.n<MIN_SESSIONS_PER_GYM) return null;
+    const ratio=b.mean/a.mean;
+    return {weight: Math.round(weight*ratio*2)/2, ratio, n: Math.min(a.n,b.n)};
+}
+
+// Inline hint under a prev-session block when no same-gym history exists.
+function suggestedFromOtherGym(name,data,cur){
+    const top=(data.sets||[]).find(s=>s.weight&&s.reps);
+    if(!top||!data.gym) return '';
+    const t=translateWeight(name,top.weight,data.gym,cur);
+    if(!t||!t.ratio) return ' Start conservative and treat today as the baseline here.';
+    return ` Based on ${t.n}+ sessions at each, ${top.weight} at ${escapeHTML(data.gym)} ≈ <strong>${t.weight}</strong> here.`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  GYM BACKFILL — runs once.
+//  History logged before the gym field existed carries no gym, which
+//  would leave it invisible to calibration. Sessions already annotated
+//  as another facility get tagged Travel / Other; everything else is
+//  assumed to be the home gym, which is where the overwhelming
+//  majority of it happened. Assumed tags are marked so they can be
+//  told apart from ones you actually selected.
+// ─────────────────────────────────────────────────────────────
+const GYM_BACKFILL_FLAG = 'cp_gym_backfill_v3';
+
+// Session-level gym assignments.
+//
+// EQUIPMENT FINGERPRINT — how to identify an untagged past session:
+//   Lying leg curl present?
+//     no                          -> Laguna YMCA (it doesn't have the machine)
+//     yes + SEATED calf raises    -> LA Fitness
+//     yes + STANDING calf raises,
+//           or calf load 40 lb+   -> Mission YMCA
+//
+// Aug 22: lying leg curl + seated calf raises (25 lb)  -> LA Fitness
+// Aug 23: different torso rotation machine             -> Mission YMCA
+// Aug 26: standing calf raises at 75 lb                -> Mission YMCA
+// Aug 27: no discriminating exercise; assigned by adjacency to Aug 26. UNVERIFIED.
+// Sep 01: weekday travel session                       -> LA Fitness
+const SEED_GYMS = {
+    '2026-08-22': 'LA Fitness',
+    '2026-08-23': 'Mission YMCA',
+    '2026-08-26': 'Mission YMCA',
+    '2026-08-27': 'Mission YMCA',
+    '2026-09-01': 'LA Fitness'
+};
+const SEED_GYMS_UNVERIFIED = { '2026-08-27': 'assigned by adjacency to Aug 26 — no discriminating exercise in this session' };
+const AWAY_HINTS = ['other gym', 'travel gym'];   // explicit only — 'different machine' can mean a different machine in the SAME gym
+
+function backfillGyms(){
+    if (localStorage.getItem(GYM_BACKFILL_FLAG)) return;
+    const gyms = getGyms();
+    const home = gyms[0], away = gyms[gyms.length-1];
+    const log = readLog();
+    let touched = 0;
+
+    log.forEach(entry => {
+        // A gym you picked yourself is never overwritten; only blanks and
+        // earlier assumptions get revised.
+        const confirmed = SEED_GYMS[entry.date] || null;
+        (entry.exercises||[]).forEach(ex => {
+            if (ex.gym && !ex.gymAssumed) return;
+            if (confirmed) { ex.gym = confirmed; ex.gymAssumed = !!SEED_GYMS_UNVERIFIED[entry.date]; }
+            else if (!ex.gym) {
+                const n = (ex.notes||'').toLowerCase();
+                ex.gym = AWAY_HINTS.some(h => n.includes(h)) ? away : home;
+                ex.gymAssumed = true;
+            }
+            touched++;
+        });
+        if (confirmed) { entry.gym = confirmed; entry.gymAssumed = !!SEED_GYMS_UNVERIFIED[entry.date]; }
+        else if (!entry.gym) { entry.gym = home; entry.gymAssumed = true; }
+    });
+
+    if (touched) localStorage.setItem(LOG_KEY, JSON.stringify(log));
+    localStorage.setItem(GYM_BACKFILL_FLAG, '1');
+}
+
+// Entries whose notes mention equipment differences. These MIGHT belong to a
+// different gym, but the note alone can't tell us — a different machine can sit
+// in the same building. Surfaced for review rather than guessed at.
+const REVIEW_HINTS = ['different machine','free weights','high row','not comparable','other gym'];
+function gymsNeedingReview(){
+    const out=[];
+    readLog().forEach(entry=>{
+        (entry.exercises||[]).forEach(ex=>{
+            const n=(ex.notes||'').toLowerCase();
+            if (ex.gymAssumed && REVIEW_HINTS.some(h=>n.includes(h)))
+                out.push({date:entry.date, name:ex.name, gym:ex.gym, note:ex.notes});
+        });
+    });
+    return out;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  MISSING-ENTRY PATCHES
+//  One-off additions for sessions that happened but never got saved —
+//  usually because the app was closed before Save, or the entry was
+//  reported verbally rather than typed in. Each patch checks for the
+//  entry before adding it, so re-running is harmless. Kept separate
+//  from the seed, which is all-or-nothing and would duplicate
+//  everything if its flag were bumped.
+// ─────────────────────────────────────────────────────────────
+const PHANTOM_FIX_FLAG = 'cp_phantom_fix_v1';
+// Oct 1 Push: Cable Lateral Raise saved weights only — the exercise wasn't done.
+// Remove it from history and point the "last logged" reference back to the
+// most recent session that actually has reps.
+const PHANTOM_ENTRIES = [ { day:'push', date:'2026-10-01', name:'Cable Lateral Raise' } ];
+function fixPhantomEntries() {
+    if (localStorage.getItem(PHANTOM_FIX_FLAG)) return;
+    let log = readLog(), changed = false;
+    PHANTOM_ENTRIES.forEach(p => {
+        log.forEach(sess => {
+            if (sess.day !== p.day || sess.date !== p.date) return;
+            const before = (sess.exercises || []).length;
+            sess.exercises = (sess.exercises || []).filter(e =>
+                !(e.name === p.name && !(e.sets || []).some(x => x.reps)));
+            if (sess.exercises.length !== before) changed = true;
+        });
+        const key = lsKey(p.day, p.name);
+        let cur = null; try { cur = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+        if (cur && cur.date === p.date && !(cur.sets || []).some(x => x.reps)) {
+            log.length && (log = log.filter(sess => (sess.exercises || []).length));
+            const prev = log.slice().sort((a,b) => (b.date||'').localeCompare(a.date||''))
+                .flatMap(sess => (sess.exercises||[]).filter(e => e.name === p.name && (e.sets||[]).some(x => x.reps))
+                .map(e => ({ date: sess.date, day: sess.day, gym: e.gym || sess.gym || null, sets: e.sets, notes: e.notes || null })))[0];
+            if (prev) localStorage.setItem(key, JSON.stringify(prev)); else localStorage.removeItem(key);
+        }
+    });
+    log = log.filter(sess => (sess.exercises || []).length);
+    if (changed) localStorage.setItem(LOG_KEY, JSON.stringify(log));
+    localStorage.setItem(PHANTOM_FIX_FLAG, '1');
+}
+
+const ENTRY_PATCH_FLAG = 'cp_entry_patch_v1';
+
+// Weekly TDEE rows reconstructed from the daily logs kept in chat.
+// Week 1 (Aug 31-Sep 6) was the trip week: dinner-only logging, restaurant
+// estimates, under 6.5h sleep most nights. Its intake figure is an estimate
+// and the week is explicitly flagged as unreliable.
+// Week 2 (Sep 7-11) has complete daily intake logs for all five days so far.
+const TDEE_SEED = [
+    { week:1, date:'2026-09-06', weight:138.4, cal:2500, sessions:1,
+      note:'TRIP WEEK - COMPROMISED. Dinner-only logging, 2 restaurant estimates, <6.5h sleep most nights. Intake figure is an estimate; de-weight this week.' },
+    { week:2, date:'2026-09-11', weight:140.4, cal:2680, sessions:3,
+      note:'Complete daily logs Sep 7-11 (3556/1958/3443/2082/2323). Home kitchen, normal sleep. Weight still refilling - glycogen/water not settled.' }
+];
+
+function seedTDEE() {
+    if (readWeeks().length) return;   // never overwrite rows you entered yourself
+    localStorage.setItem(TDEE_KEY, JSON.stringify(TDEE_SEED));
+}
+
+// Sessions saved in the evening before the local-date fix got stamped with the
+// next day's UTC date. Move them back to the day they actually happened.
+const DATE_FIXES = [
+    { day:'legs2', wrong:'2026-09-22', right:'2026-09-21', note:'Culver City, 5:35–5:50 PM Mon' },
+    { day:'push',  wrong:'2026-09-23', right:'2026-09-22', note:'Culver City, 5:11–5:46 PM Tue' },
+];
+const DATE_FIX_FLAG = 'cp_date_fix_v1';
+
+function fixMisdatedSessions() {
+    if (localStorage.getItem(DATE_FIX_FLAG)) return;
+    const log = readLog();
+    let changed = false;
+    DATE_FIXES.forEach(f => {
+        log.forEach(s => {
+            if (s.day === f.day && s.date === f.wrong) { s.date = f.right; changed = true; }
+        });
+        // Also correct each exercise's "last logged" reference if it carries the bad date
+        (WORKOUTS[f.day]?.exercises || []).forEach(ex => {
+            const key = lsKey(f.day, ex.name);
+            try {
+                const rec = JSON.parse(localStorage.getItem(key));
+                if (rec && rec.date === f.wrong && rec.day === f.day) {
+                    rec.date = f.right;
+                    localStorage.setItem(key, JSON.stringify(rec));
+                }
+            } catch(e) {}
+        });
+    });
+    if (changed) localStorage.setItem(LOG_KEY, JSON.stringify(log));
+    localStorage.setItem(DATE_FIX_FLAG, '1');
+}
+
+const MISSING_ENTRIES = [
+    // Sep 6 legs at Laguna YMCA — done but never entered in the app.
+    { name:'Back Extensions', day:'sat', date:'2026-09-06', gym:'Laguna YMCA',
+      sets:[[1, 0, 21]], note:'Bodyweight — logged after the fact' }
+];
+
+function patchMissingEntries() {
+    if (localStorage.getItem(ENTRY_PATCH_FLAG)) return;
+    const log = readLog();
+    let changed = false;
+
+    MISSING_ENTRIES.forEach(item => {
+        // Already present? Leave it alone.
+        const exists = log.some(e => e.date === item.date &&
+            (e.exercises || []).some(x => x.name === item.name));
+        if (exists) return;
+
+        const sets = item.sets.map(([set, weight, reps]) => ({ set, weight, reps }));
+        const entry = { name: item.name, sets, notes: item.note || null,
+                        pullup: false, gym: item.gym || null };
+
+        // Attach to that day's existing session if there is one, else create it.
+        let session = log.find(e => e.date === item.date && e.day === item.day);
+        if (session) {
+            (session.exercises = session.exercises || []).push(entry);
+        } else {
+            log.push({ date: item.date, day: item.day, gym: item.gym || null,
+                       ts: new Date(item.date).getTime(), exercises: [entry] });
+        }
+
+        // Only becomes the "last logged" reference if nothing newer exists.
+        const key = lsKey(item.day, item.name);
+        let cur = null;
+        try { cur = JSON.parse(localStorage.getItem(key)); } catch(e) {}
+        if (!cur || !cur.date || cur.date <= item.date) {
+            localStorage.setItem(key, JSON.stringify({
+                date: item.date, day: item.day, gym: item.gym || null,
+                sets, notes: item.note || null
+            }));
+        }
+        changed = true;
+    });
+
+    if (changed) localStorage.setItem(LOG_KEY, JSON.stringify(log));
+    localStorage.setItem(ENTRY_PATCH_FLAG, '1');
+}
+
+function renderCalibration(){
+    const host=document.getElementById('calibration'); if(!host) return;
+    const names=[...new Set(readLog().flatMap(e=>(e.exercises||[]).map(x=>x.name)))].sort();
+    const rows=[], pending=[];
+
+    names.forEach(name=>{
+        const by=e1rmByGym(name);
+        const ready=Object.entries(by).filter(([,v])=>v.n>=MIN_SESSIONS_PER_GYM);
+        if(ready.length>=2){
+            ready.sort((x,y)=>y[1].mean-x[1].mean);
+            const [baseG,baseV]=ready[0];
+            const cells=ready.slice(1).map(([g,v])=>{
+                const pct=((v.mean/baseV.mean)-1)*100;
+                return `${escapeHTML(g)}: <strong>${pct>=0?'+':''}${pct.toFixed(0)}%</strong> vs ${escapeHTML(baseG)} <span style="color:#64748b">(n=${v.n})</span>`;
+            });
+            rows.push(`<tr><td>${escapeHTML(name)}</td><td>${cells.join('<br>')}</td></tr>`);
+        } else if(Object.keys(by).length>=2){
+            pending.push(name);
+        }
+    });
+
+    let html='';
+    if(rows.length){
+        html+=`<table class="calib-table"><tr><th>Exercise</th><th>Offset</th></tr>${rows.join('')}</table>`;
+    } else {
+        html+=`<p class="calib-empty">Nothing calibrated yet — no exercise has ${MIN_SESSIONS_PER_GYM}+ sessions at each of two gyms. Keep logging with the gym set and this fills in on its own.</p>`;
+    }
+    if(pending.length){
+        html+=`<p class="calib-pending"><strong>Collecting:</strong> ${pending.map(escapeHTML).join(', ')} — seen at more than one gym, not yet ${MIN_SESSIONS_PER_GYM} sessions each.</p>`;
+    }
+    const review=gymsNeedingReview();
+    if(review.length){
+        html+=`<p class="calib-pending"><strong>⚠️ Assumed ${escapeHTML(getGyms()[0])} — worth checking:</strong> these pre-date gym tracking and their notes mention equipment differences, which may or may not mean a different facility.<br>`+
+            review.map(r=>`&nbsp;&nbsp;• ${r.date} ${escapeHTML(r.name)} — <em>${escapeHTML(r.note||'')}</em>`).join('<br>')+`</p>`;
+    }
+    html+=`<p class="calib-note">Offsets compare estimated 1RM, not raw weight, so differing rep counts don't distort them. Treat as rough: they blend real machine differences with day-to-day variation, and small samples move a lot.</p>`;
+    host.innerHTML=html;
+}
+
+function loadAllPrevSessions() {
+    Object.entries(WORKOUTS).forEach(([day, data]) => {
+        data.exercises.forEach(ex => {
+            const id = slug(day, ex.name);
+            renderPrevSession(day, ex.name, id, !!ex.pullup);
+        });
+    });
+}
+
+
+
+// ─────────────────────────────────────────────────────────────
+//  BASELINE SEED — last logged numbers carried over from the
+//  previous version of this logger. Runs once, then never again.
+//  Dates reflect when each lift was actually last performed.
+// ─────────────────────────────────────────────────────────────
+// Shown in the header so you can confirm which version is running.
+const APP_BUILD = 'v37 · Oct 1';
+
+// Standalone iPhone apps have no pull-to-refresh. This asks the service
+// worker to fetch the latest files, then reloads. Unsaved inputs are kept by
+// the draft autosave, so a reload mid-session doesn't lose them.
+function checkForUpdate(btn){
+    if(btn){ btn.disabled=true; btn.textContent='Checking…'; }
+    const go=()=>location.reload();
+    if(!('serviceWorker' in navigator)) return go();
+    navigator.serviceWorker.getRegistration()
+        .then(r=>r ? r.update() : null)
+        .catch(()=>{})
+        .then(()=>fetch('index.html',{cache:'no-store'}).catch(()=>{}))
+        .then(go, go);
+}
+
+const SEED_FLAG = 'cp_seeded_baseline_v8_sep30';
+
+// Four real sessions carried into a fresh install: Sat Aug 22 legs, Sun Aug 23 full
+// upper, Wed Aug 26 push, Thu Aug 27 pull.
+//
+// Ordered oldest -> newest on purpose. Every entry is written to History, but the
+// per-exercise "last logged" key is overwritten as the loop runs, so the most recent
+// session automatically owns the match-or-beat reference for shared movements.
+// Keys are name-only, so those references surface on the floating Push/Pull tabs
+// without those sessions being logged as Push or Pull days.
+// Full training history, rebuilt from the Sep 17 CSV export.
+// Supersedes the earlier partial seed. The export contained 90 duplicate
+// set-rows caused by an earlier SEED_FLAG bump re-running the whole seed;
+// those are removed here, and the seeder below now REPLACES the log rather
+// than appending, so a future bump can't duplicate anything again.
+const BASELINE = [
+  { name:"Myotatic Crunches", day:'pull', date:'2026-08-06', gym:"Laguna YMCA", sets:[[1,15,10]] },
+  { name:"Hip Abductor Machine", day:'sat', date:'2026-08-08', gym:"Laguna YMCA", sets:[[1,30,11],[2,25,12]] },
+  { name:"Leg Press", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,100,10],["Back-off",80,12],[3,75,14]] },
+  { name:"Seated Leg Curl", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,55,12],[2,45,11]] },
+  { name:"Lying Leg Curl", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,40,16],[2,35,12]] },
+  { name:"Leg Extension", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,60,13],[2,55,10]] },
+  { name:"Hip Adductor Machine", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,75,16],[2,70,21]], note:"Different machine \u2014 other gym, weights not comparable" },
+  { name:"Calf Raises", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,25,10],[2,10,12]], note:"Seated free weights \u2014 not comparable to the machine" },
+  { name:"Hanging Leg Raises", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,0,15],[2,0,9]] },
+  { name:"Cable Lateral Raise", day:'sat', date:'2026-08-22', gym:"LA Fitness", sets:[[1,20,17],[2,15,12]], note:"Machine lateral raise \u00b7 3rd set 10 lb \u00d7 12" },
+  { name:"Machine Bench Press", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,80,11],["Back-off",65,14],[3,60,11]] },
+  { name:"Incline DB Press", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,80,10],[2,70,8]] },
+  { name:"Pec Dec", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,60,11],[2,50,9]] },
+  { name:"Lat Pulldown", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,77,13],["Back-off",66,13],[3,60,13]] },
+  { name:"Single-Arm Cable Pulldown", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,27.5,12],[2,22,12]] },
+  { name:"Chest-Supported Row", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,55,13],[2,50,12]] },
+  { name:"Rear Delt Cable Fly", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,16,11],[2,11,8]] },
+  { name:"Cable Lateral Raise", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,20,12],["Back-off",15,11],[3,10,7]], note:"Machine" },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,38,12],[2,27,12]] },
+  { name:"Cable EZ Curl", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,33,10],[2,22,13]] },
+  { name:"Wrist Curls", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,22.5,15],[2,17.5,15]] },
+  { name:"Wrist Extensions", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,10,13],[2,7.5,12]] },
+  { name:"Torso Rotations", day:'sun', date:'2026-08-23', gym:"Mission YMCA", sets:[[1,50,10],[2,40,10]], note:"Different machine \u2014 start @ 45 lb next session" },
+  { name:"Machine Bench Press", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,90,5],[2,70,7]], note:"90 was too big a jump from 80\u00d711 \u2014 try 85. Rest was cut short, pressed for time" },
+  { name:"Incline DB Press", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,80,6],[2,60,7]], note:"Short rest \u2014 80\u00d710 three days earlier" },
+  { name:"Pec Dec", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,60,11],[2,50,8]] },
+  { name:"DB Shoulder Press", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,40,9],[2,30,9]], note:"First dumbbell session \u2014 this is the anchor" },
+  { name:"Straight Bar Pushdowns", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,32.5,14],[2,27.5,11]] },
+  { name:"Calf Raises", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,75,10],[2,60,11]], note:"Standing machine \u00b7 height = 3" },
+  { name:"Ab Wheel", day:'push', date:'2026-08-26', gym:"Mission YMCA", sets:[[1,0,12],[2,0,8]] },
+  { name:"Assisted Pull-Ups", day:'pull', date:'2026-08-27', gym:"Mission YMCA", sets:[[1,60,11],[2,65,7],[3,75,7],[4,90,9]], pullup:true },
+  { name:"Cable Row", day:'pull', date:'2026-08-27', gym:"Mission YMCA", sets:[[1,70,10],[2,55,11]] },
+  { name:"Rear Delt Cable Fly", day:'pull', date:'2026-08-27', gym:"Mission YMCA", sets:[[1,15,14],[2,11,13]] },
+  { name:"Cable Lateral Raise", day:'pull', date:'2026-08-27', gym:"Mission YMCA", sets:[[1,18,11],["Back-off",11,10],[3,5,11]] },
+  { name:"Rope Hammer Curl", day:'pull', date:'2026-08-27', gym:"Mission YMCA", sets:[[1,27.5,13],[2,17.5,15]] },
+  { name:"Incline DB Curl", day:'pull', date:'2026-08-27', gym:"Mission YMCA", sets:[[1,20,15],[2,20,9]] },
+  { name:"Machine Bench Press", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,90,8],["Back-off",70,11],[3,65,6]] },
+  { name:"DB Shoulder Press", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,40,15],[2,40,10]] },
+  { name:"Incline DB Press", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,80,5],[2,60,9]] },
+  { name:"Pec Dec", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,60,8],[2,45,9]], note:"Move after lat pull downs" },
+  { name:"Lat Pulldown", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,80,7],["Back-off",65,12],[3,60,9]], note:"High row machine" },
+  { name:"Single-Arm Cable Pulldown", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,27.5,10],[2,23.75,10]], note:"Height = 8" },
+  { name:"Chest-Supported Row", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,70,10],[2,55,11]] },
+  { name:"Rear Delt Cable Fly", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,20,13],[2,14,13]] },
+  { name:"Cable Lateral Raise", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,20,10],["Back-off",14,10],[3,6,9]], note:"Height = 6" },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,35,15],[2,31.25,9]] },
+  { name:"Cable EZ Curl", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,31.25,11],[2,23.75,10]] },
+  { name:"Wrist Curls", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,20,20],[2,15,15]] },
+  { name:"Wrist Extensions", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,6,17],[2,4,16]] },
+  { name:"Torso Rotations", day:'sun', date:'2026-08-29', gym:"Travel / Other", sets:[[1,70,14],[2,65,15]] },
+  { name:"Machine Bench Press", day:'push', date:'2026-09-01', gym:"LA Fitness", sets:[[1,100,5],[2,75,9]] },
+  { name:"Incline DB Press", day:'push', date:'2026-09-01', gym:"LA Fitness", sets:[[1,80,7],[2,60,9]] },
+  { name:"Pec Dec", day:'push', date:'2026-09-01', gym:"LA Fitness", sets:[[1,60,15],[2,55,12]] },
+  { name:"DB Shoulder Press", day:'push', date:'2026-09-01', gym:"LA Fitness", sets:[[1,45,12],[2,40,12]] },
+  { name:"Cable Lateral Raise", day:'push', date:'2026-09-01', gym:"LA Fitness", sets:[[1,25,11],["Back-off",20,10],[3,10,6]], note:"Mackneo; start at 20 lb if son machine next time" },
+  { name:"Straight Bar Pushdowns", day:'push', date:'2026-09-01', gym:"LA Fitness", sets:[[1,32.5,13],[2,27.5,13]] },
+  { name:"Lat Pulldown", day:'sun', date:'2026-09-03', gym:"LA Fitness", sets:[[1,85,9],["Back-off",70,12],[3,65,12]] },
+  { name:"Leg Press", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,120,8],["Back-off",95,12],[3,90,8]] },
+  { name:"Seated Leg Curl", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,55,12],[2,40,15]] },
+  { name:"Leg Extension", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,65,13],[2,60,10]] },
+  { name:"Glute Machine", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,130,15],[2,130,12]] },
+  { name:"Hip Abductor Machine", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,30,15],[2,20,13]] },
+  { name:"Hip Adductor Machine", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,45,13],[2,35,13]] },
+  { name:"Calf Raises", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,85,13],[2,70,14]] },
+  { name:"Cable Lateral Raise", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,20,11],["Back-off",14,11],[3,6,12]] },
+  { name:"Hanging Leg Raises", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,0,15],[2,0,12]] },
+  { name:"Back Extensions", day:'sat', date:'2026-09-06', gym:"Laguna YMCA", sets:[[1,0,21]], note:"Bodyweight \u2014 logged after the fact" },
+  { name:"Machine Bench Press", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,100,5],["Back-off",80,8],[3,70,6]] },
+  { name:"Lat Pulldown", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,100,6],["Back-off",80,12],[3,75,10]] },
+  { name:"DB Shoulder Press", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,45,12],[2,40,7]], note:"Life fitness machine" },
+  { name:"Incline DB Press", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,70,10],[2,60,7]], note:"Hammer Strength machine" },
+  { name:"Pec Dec", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,65,15],[2,60,8]] },
+  { name:"Single-Arm Cable Pulldown", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,30,12],[2,30,12]], note:"Height = 7" },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,35,13],[2,30,10]] },
+  { name:"Cable EZ Curl", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,30,12],[2,30,8]] },
+  { name:"Wrist Curls", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,20,20],[2,15,13]] },
+  { name:"Wrist Extensions", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,10,12],[2,5,12]] },
+  { name:"Torso Rotations", day:'sun', date:'2026-09-07', gym:"LA Fitness", sets:[[1,70,15],[2,70,20]] },
+  { name:"Assisted Pull-Ups", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,45,7],[2,60,7],[3,75,8],[4,105,16]], pullup:true },
+  { name:"Single-Arm Cable Pulldown", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,35,8],[2,23.75,12]] },
+  { name:"Cable Row", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,38.75,10],[2,35,9]] },
+  { name:"Rear Delt Cable Fly", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,17.5,13],[2,10,13]] },
+  { name:"Cable Lateral Raise", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,20,12],["Back-off",14,14],[3,6,13]] },
+  { name:"Rope Hammer Curl", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,27.5,14],[2,20,13]] },
+  { name:"Incline DB Curl", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,30,10],[2,20,10]] },
+  { name:"Wrist Curls", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,25,12],[2,20,12]] },
+  { name:"Wrist Extensions", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,10,12],[2,5,12]] },
+  { name:"Myotatic Crunches", day:'pull', date:'2026-09-09', gym:"Laguna YMCA", sets:[[1,15,14]] },
+  { name:"Machine Bench Press", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,95,8],[2,75,7]] },
+  { name:"Incline DB Press", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,80,7],[2,60,7]] },
+  { name:"Pec Dec", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,55,12],[2,45,11]] },
+  { name:"DB Shoulder Press", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,50,14],[2,40,11]] },
+  { name:"Cable Lateral Raise", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,20,10],["Back-off",14,12],[3,6,12]] },
+  { name:"Cable External Rotation", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,5,10]] },
+  { name:"Straight Bar Pushdowns", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,39.75,12],[2,35,11]] },
+  { name:"Ab Wheel", day:'push', date:'2026-09-11', gym:"Laguna YMCA", sets:[[1,0,15],[2,0,9]] },
+  { name:"Leg Press", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,115,8],["Back-off",95,12],[3,85,14]] },
+  { name:"Seated Leg Curl", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,55,12],[2,44,15]] },
+  { name:"Leg Extension", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,65,12],[2,60,11]] },
+  { name:"Glute Machine", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,85,10],[2,65,14]], note:"New glute machine. Stick with this one" },
+  { name:"Back Extensions", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,0,15]] },
+  { name:"Hip Abductor Machine", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,30,15],[2,30,12]] },
+  { name:"Hip Adductor Machine", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,45,15],[2,35,15]] },
+  { name:"Calf Raises", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,75,15],[2,70,15]] },
+  { name:"Cable Lateral Raise", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,20,13],["Back-off",14,16],[3,6,14]] },
+  { name:"Hanging Leg Raises", day:'sat', date:'2026-09-12', gym:"Laguna YMCA", sets:[[1,0,10],[2,0,10]] },
+  { name:"Machine Bench Press", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,95,6],["Back-off",75,10],[3,70,4]] },
+  { name:"Lat Pulldown", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,53.75,6],["Back-off",42.5,9],[3,38.75,0]], note:"Downstairs machine; weights don\u2019t correspond" },
+  { name:"DB Shoulder Press", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,60,8],[2,50,7]] },
+  { name:"Incline DB Press", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,60,14],[2,60,10]] },
+  { name:"Single-Arm Cable Pulldown", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,35,10],[2,31.25,10]] },
+  { name:"Rear Delt Cable Fly", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,17.5,15],[2,10,14]] },
+  { name:"Cable External Rotation", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,5,11]], note:"Height = 14" },
+  { name:"Cable Lateral Raise", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,20,11],["Back-off",14,13],[3,6,11]] },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,42.5,11],[2,38.75,7]] },
+  { name:"Cable EZ Curl", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,35,10],[2,27.5,10]] },
+  { name:"Wrist Curls", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,20,20],[2,15,16]] },
+  { name:"Wrist Extensions", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,12,12],[2,8,12]] },
+  { name:"Torso Rotations", day:'sun', date:'2026-09-13', gym:"Laguna YMCA", sets:[[1,75,13],[2,70,15]] },
+  { name:"Machine Bench Press", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,95,5],["Back-off",75,10],[3,70,4]], note:"Felt too heavy on top and drop, back-off felt easy" },
+  { name:"Lat Pulldown", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,100,6],["Back-off",70,10],[3,60,12]], note:"Too heavy on top set" },
+  { name:"DB Shoulder Press", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,60,12],[2,50,15]] },
+  { name:"Incline DB Press", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,70,10],[2,60,7]] },
+  { name:"Pec Dec", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,55,15],[2,50,10]] },
+  { name:"Single-Arm Cable Pulldown", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,35,12],[2,31.25,10]], note:"Height = 10" },
+  { name:"Rear Delt Cable Fly", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,25,12],[2,17.5,9]] },
+  { name:"Cable Lateral Raise", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,20,13],["Back-off",14,13],[3,6,12]] },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,42.5,14],[2,38.75,7]] },
+  { name:"Cable EZ Curl", day:'sun', date:'2026-09-16', gym:"Laguna YMCA", sets:[[1,35,12],[2,31.25,10]], note:"Rope hammer curls instead" },
+  { name:"Machine Bench Press", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,90,6],["Back-off",75,12],[3,60,10]] },
+  { name:"Lat Pulldown", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,90,8],["Back-off",80,11],[3,60,12]] },
+  { name:"DB Shoulder Press", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,70,12],[2,60,9]] },
+  { name:"Incline DB Press", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,80,8],[2,70,7]] },
+  { name:"Pec Dec", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,60,11],[2,50,10]] },
+  { name:"Single-Arm Cable Pulldown", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,38.75,8],[2,27.5,12]] },
+  { name:"Chest-Supported Row", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,70,10],[2,55,10]] },
+  { name:"Rear Delt Cable Fly", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,25,12],[2,17.5,10]], note:"Height 7" },
+  { name:"Cable External Rotation", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,5,8]], note:"Height 14" },
+  { name:"Cable Lateral Raise", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,20,14],["Back-off",14,14],[3,6,10]] },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,46.25,null]] },
+  { name:"Cable EZ Curl", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,38.75,11],[2,31.25,12]] },
+  { name:"Wrist Curls", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,25,15],[2,20,13]] },
+  { name:"Wrist Extensions", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,12,15],[2,8,12]] },
+  { name:"Torso Rotations", day:'sun', date:'2026-09-19', gym:"Laguna YMCA", sets:[[1,80,13],[2,70,13]] },
+  { name:"Leg Press (Volume)", day:'legs2', date:'2026-09-21', gym:"Travel / Other", sets:[[1,130,12],[3,110,15]] },
+  { name:"Seated Leg Curl", day:'legs2', date:'2026-09-21', gym:"Travel / Other", sets:[[1,50,13],[2,40,15]] },
+  { name:"Leg Extension (Volume)", day:'legs2', date:'2026-09-21', gym:"Travel / Other", sets:[[1,55,15],[2,45,15]] },
+  { name:"Calf Raises", day:'legs2', date:'2026-09-21', gym:"Travel / Other", sets:[[1,65,null]] },
+  { name:"Machine Bench Press", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,90,9],["Back-off",80,14],[3,65,12]] },
+  { name:"Incline DB Press", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,80,8],[2,60,10]] },
+  { name:"DB Shoulder Press", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,80,7],[2,60,8]] },
+  { name:"Cable Lateral Raise", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,15,15],["Back-off",10,15]] },
+  { name:"Cable External Rotation", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,5,12]] },
+  { name:"Straight Bar Pushdowns", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,36,12],[2,32.5,12]] },
+  { name:"Ab Wheel", day:'push', date:'2026-09-22', gym:"Travel / Other", sets:[[1,0,12],[2,0,12]] },
+  { name:"Lat Pulldown", day:'upper2', date:'2026-09-23', gym:"Travel / Other", sets:[[1,90,10],["Back-off",75,12],[3,60,12]] },
+  { name:"Assisted Pull-Ups", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,60,null],[2,70,null],[3,90,null],[4,110,null]], pullup:true },
+  { name:"Single-Arm Cable Pulldown", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,37,10],[2,27,12]] },
+  { name:"Cable Row", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,60,12],[2,50,12]] },
+  { name:"Rear Delt Cable Fly", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,20,14],[2,14,12]] },
+  { name:"Cable Lateral Raise", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,20,15],["Back-off",14,13],[3,6,13]], note:"Same machine as Laguna Y" },
+  { name:"Rope Hammer Curl", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,27,13],[2,23,12]] },
+  { name:"Incline DB Curl", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,30,10],[2,20,12]] },
+  { name:"Wrist Curls", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,25,13],[2,20,12]] },
+  { name:"Wrist Extensions", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,10,12],[2,5,16]] },
+  { name:"Myotatic Crunches", day:'pull', date:'2026-09-23', gym:"Travel / Other", sets:[[1,10,15]] },
+  { name:"Machine Bench Press", day:'upper2', date:'2026-09-25', gym:"Travel / Other", sets:[[1,100,10],["Back-off",85,10],[3,70,7]] },
+  { name:"Lat Pulldown", day:'upper2', date:'2026-09-25', gym:"Travel / Other", sets:[[1,95,10],["Back-off",80,11],[3,65,10]] },
+  { name:"DB Shoulder Press", day:'upper2', date:'2026-09-25', gym:"Travel / Other", sets:[[1,80,8],[2,60,8]] },
+  { name:"Incline DB Press", day:'upper2', date:'2026-09-25', gym:"Travel / Other", sets:[[1,80,6],[2,60,6]] },
+  { name:"Machine Bench Press", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,90,5],["Back-off",75,12],[3,60,8]] },
+  { name:"Lat Pulldown", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,90,6],["Back-off",70,12],[3,60,10]] },
+  { name:"DB Shoulder Press", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,80,9],[2,60,8]] },
+  { name:"Incline DB Press", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,80,8],[2,60,9]] },
+  { name:"Pec Dec", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,60,12],[2,45,10]] },
+  { name:"Chest-Supported Row", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,75,12],[2,55,13]] },
+  { name:"Rear Delt Cable Fly", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,25,15],[2,17.5,11]], note:"Height 9" },
+  { name:"Cable External Rotation", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,5,10]] },
+  { name:"Cable Lateral Raise", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,20,13],["Back-off",14,13],[3,6,10]] },
+  { name:"Straight Bar Pushdowns", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,35,12],[2,31.25,11]] },
+  { name:"Torso Rotations", day:'sun', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,80,15],[2,70,15]] },
+  { name:"Back Extensions", day:'pull', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,0,15]], note:"Put on anchor full upper routone" },
+  { name:"Incline DB Curl", day:'pull', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,30,12],[2,24,9]] },
+  { name:"Wrist Curls", day:'pull', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,25,12],[2,15,18]] },
+  { name:"Wrist Extensions", day:'pull', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,10,15],[2,7,15]] },
+  { name:"Myotatic Crunches", day:'pull', date:'2026-09-28', gym:"Laguna YMCA", sets:[[1,15,10]] },
+  { name:"Leg Press", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,180,8],["Back-off",150,12],[3,120,10]], note:"Star Tracker plate machine" },
+  { name:"Seated Leg Curl", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,50,15],[2,40,15]] },
+  { name:"Lying Leg Curl", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,50,15],[2,45,13]] },
+  { name:"Leg Extension", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,80,8],[2,60,8]] },
+  { name:"Back Extensions", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,25,12]] },
+  { name:"Hip Abductor Machine", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,35,13],[2,30,14]] },
+  { name:"Hip Adductor Machine", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,50,15],[2,45,12]] },
+  { name:"Calf Raises", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,90,15],[2,75,18]], note:"Seat @ 4; try 95lb/75lb next time" },
+  { name:"Cable Lateral Raise", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,26.4,10],["Back-off",17.6,14],[3,8.8,11]] },
+  { name:"Hanging Leg Raises", day:'sat', date:'2026-09-29', gym:"Mission YMCA", sets:[[1,0,15],[2,0,10]] },
+  { name:"Assisted Pull-Ups", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,45,7],[2,75,8],[3,90,9],[4,105,10]], pullup:true },
+  { name:"Single-Arm Cable Pulldown", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,38.75,8],[2,27.5,10]], note:"Height adjusted, set @ 7, start @ 35lbs next time" },
+  { name:"Cable Row", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,38.75,11],[2,31.25,10]] },
+  { name:"Back Extensions", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,0,15]] },
+  { name:"Rear Delt Cable Fly", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,30,12],[2,20,12]], note:"Not usual machine (Star Trac cable machine)" },
+  { name:"Cable Lateral Raise", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,20,12],["Back-off",14,15],[3,6,12]] },
+  { name:"Rope Hammer Curl", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,31.25,10],[2,23.75,14]] },
+  { name:"Incline DB Curl", day:'pull', date:'2026-09-30', gym:"Laguna YMCA", sets:[[1,30,10],[2,24,8]] },
+];
+
+// Recorded in History but never used as a "last logged" reference — this movement
+// was retired when shoulder press moved to dumbbells.
+const BASELINE_HISTORY_ONLY = [
+  { name:'Machine Shoulder Press', day:'sun', date:'2026-08-23', sets:[[1,50,13],[2,45,10]], note:'Final machine session — switched to dumbbells, DB history starts fresh' },
+];
+
+function seedBaseline() {
+    if (localStorage.getItem(SEED_FLAG)) return;
+
+    const byDay = {};
+
+    BASELINE.forEach(item => {
+        // Assisted pull-ups store assistance weight and net load rather than plain load
+        const sets = item.pullup
+            ? item.sets.map(([set, assistW, reps]) => ({ set, assistW, net: BW - assistW, reps }))
+            : item.sets.map(([set, weight, reps]) => ({ set, weight, reps }));
+        const record = { date: item.date, day: item.day, gym: item.gym || null, sets, notes: item.note || null };
+        // Never overwrite a newer "last logged" reference. An older install that
+        // runs this seed for the first time must keep sessions logged after the
+        // seed export as the match-or-beat baseline.
+        let cur = null;
+        try { cur = JSON.parse(localStorage.getItem(lsKey(item.day, item.name))); } catch(e) {}
+        if (!cur || !cur.date || cur.date <= item.date) {
+            localStorage.setItem(lsKey(item.day, item.name), JSON.stringify(record));
+        }
+        const bucket = `${item.day}|${item.date}`;
+        (byDay[bucket] = byDay[bucket] || []).push({ name: item.name, sets, notes: record.notes, pullup: !!item.pullup, gym: item.gym || null });
+    });
+
+    // History-only entries: recorded in the log, but they do not become the
+    // "last logged" reference for their exercise.
+    BASELINE_HISTORY_ONLY.forEach(item => {
+        const sets = item.sets.map(([set, weight, reps]) => ({ set, weight, reps }));
+        const bucket = `${item.day}|${item.date}`;
+        (byDay[bucket] = byDay[bucket] || []).push({ name: item.name, sets, notes: item.note || null, pullup: false });
+    });
+
+    // Build the seeded sessions.
+    const seeded = Object.entries(byDay).map(([bucket, exercises]) => {
+        const [day, date] = bucket.split('|');
+        const gym = (exercises.find(e => e.gym) || {}).gym || null;
+        return { date, day, gym, ts: new Date(date).getTime(), exercises };
+    });
+
+    // REPLACE rather than append. The seed is the authoritative history export,
+    // so any session it covers is re-created from it; anything logged for a date
+    // the seed doesn't know about is preserved. Appending is what produced 90
+    // duplicate set-rows when an earlier SEED_FLAG bump re-ran the whole seed.
+    const seededDates = new Set(seeded.map(s => `${s.day}|${s.date}`));
+    // Misdated copies (UTC-date bug) of sessions the seed now carries on the
+    // right date are dropped too, so the date-fix pass can't duplicate them.
+    DATE_FIXES.forEach(f => seededDates.add(`${f.day}|${f.wrong}`));
+    const kept = readLog().filter(s => !seededDates.has(`${s.day}|${s.date}`));
+    const merged = kept.concat(seeded).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    localStorage.setItem(LOG_KEY, JSON.stringify(merged));
+
+    localStorage.setItem(SEED_FLAG, '1');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  SESSION HISTORY
+// ─────────────────────────────────────────────────────────────
+const LOG_KEY = 'cp_session_log';
+
+function readLog() {
+    try {
+        const raw = localStorage.getItem(LOG_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+}
+
+function setLabel(s) {
+    return (typeof s.set === 'number') ? `Set ${s.set}` : s.set;
+}
+
+function formatSets(ex) {
+    return ex.sets.map(s => {
+        if (ex.pullup) {
+            const net = (s.net !== null && s.net !== undefined) ? ` (net ${s.net})` : '';
+            return `${setLabel(s)}: ${s.assistW ?? '—'} lbs assist${net} × ${s.reps ?? '—'}`;
+        }
+        if (s.weight === null || s.weight === undefined) return `${setLabel(s)}: ${s.reps ?? '—'} reps`;
+        return `${setLabel(s)}: ${s.weight} lbs × ${s.reps ?? '—'}`;
+    }).join(' &nbsp;·&nbsp; ');
+}
+
+function switchHistView(view, btn) {
+    document.querySelectorAll('.hist-view').forEach(v => v.style.display = 'none');
+    document.getElementById(`hist-${view}`).style.display = 'block';
+    btn.parentElement.querySelectorAll('.day-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+// A short colour-coded gym tag. Assumed tags are marked so a backfilled
+// guess never reads like something that was actually selected.
+function gymChip(gym, assumed) {
+    if (!gym) return '';
+    const cls = 'gymtag gymtag-' + (getGyms().indexOf(gym) % 4);
+    return ` <span class="${cls}" title="${assumed ? 'Assumed — not confirmed at logging time' : escapeHTML(gym)}">${escapeHTML(gym)}${assumed ? '?' : ''}</span>`;
+}
+function sessionGymChip(s) {
+    const g = s.gym || (s.exercises && s.exercises[0] && s.exercises[0].gym) || null;
+    return gymChip(g, s.gymAssumed);
+}
+
+function renderHistory() {
+    const log = readLog();
+    renderHistStats(log);
+    renderTimeline(log);
+    renderByExercise(log);
+}
+
+function renderHistStats(log) {
+    const box = document.getElementById('hist-stats');
+    if (!box) return;
+
+    if (!log.length) {
+        box.innerHTML = '<div class="hist-empty">No sessions logged yet. Save a workout and it will show up here.</div>';
+        return;
+    }
+
+    const totalSets = log.reduce((n, s) => n + s.exercises.reduce((m, e) => m + e.sets.length, 0), 0);
+    const notesCount = log.reduce((n, s) => n + s.exercises.filter(e => e.notes).length, 0);
+    const dates = log.map(s => s.date).sort();
+    const first = dates[0];
+
+    // Sessions in the last 7 days
+    const weekAgo = localDate(new Date(Date.now() - 7 * 864e5));
+    const last7 = log.filter(s => s.date >= weekAgo).length;
+
+    box.innerHTML = `
+        <div class="card-title"><span>Training Log</span><span class="badge">since ${first}</span></div>
+        <div class="stat-grid">
+            <div class="summary-item"><div class="lbl">Sessions</div><div class="val">${log.length}</div></div>
+            <div class="summary-item highlight"><div class="lbl">Last 7 Days</div><div class="val">${last7}</div></div>
+            <div class="summary-item"><div class="lbl">Sets Logged</div><div class="val">${totalSets}</div></div>
+            <div class="summary-item"><div class="lbl">Notes</div><div class="val">${notesCount}</div></div>
+        </div>`;
+}
+
+function renderTimeline(log) {
+    const box = document.getElementById('hist-timeline');
+    if (!box) return;
+
+    if (!log.length) { box.innerHTML = ''; return; }
+
+    const sorted = [...log].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+
+    box.innerHTML = sorted.map(s => {
+        const rows = s.exercises.map(e => `
+            <div class="hist-ex">
+                <div class="hist-ex-name">${escapeHTML(e.name)}</div>
+                <div class="hist-sets">${formatSets(e)}</div>
+                ${e.notes ? `<div class="hist-note">📝 ${escapeHTML(e.notes)}</div>` : ''}
+            </div>`).join('');
+
+        return `
+            <div class="hist-session">
+                <div class="hist-session-head">
+                    <span class="hist-date">${DAY_LABELS[s.day] || s.day}${sessionGymChip(s)}</span>
+                    <span class="badge">${s.date} · ${s.exercises.length} exercises</span>
+                </div>
+                ${rows}
+            </div>`;
+    }).join('');
+}
+
+function renderByExercise(log) {
+    const box = document.getElementById('hist-exercise');
+    if (!box) return;
+
+    if (!log.length) { box.innerHTML = ''; return; }
+
+    // Group every logged top set by exercise name
+    const byEx = {};
+    [...log].sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach(s => {
+        s.exercises.forEach(e => {
+            if (!byEx[e.name]) byEx[e.name] = [];
+            const top = e.sets.find(x => x.set === 1) || e.sets[0];
+            if (!top) return;
+            byEx[e.name].push({
+                date: s.date,
+                day: s.day,
+                gym: e.gym || s.gym || null,
+                gymAssumed: !!(e.gymAssumed || s.gymAssumed),
+                weight: e.pullup ? top.assistW : top.weight,
+                reps: top.reps,
+                notes: e.notes,
+                pullup: e.pullup
+            });
+        });
+    });
+
+    const names = Object.keys(byEx).sort();
+
+    box.innerHTML = names.map(name => {
+        const entries = byEx[name].slice().reverse(); // newest first
+        const rows = entries.map((en, i) => {
+            const prev = entries[i + 1];
+            let trend = '';
+            if (prev && en.weight != null && prev.weight != null) {
+                // For pull-ups, LESS assistance is an improvement
+                const better = en.pullup ? en.weight < prev.weight : en.weight > prev.weight;
+                const worse  = en.pullup ? en.weight > prev.weight : en.weight < prev.weight;
+                if (better)      trend = '<span class="hist-up">▲</span>';
+                else if (worse)  trend = '<span class="hist-down">▼</span>';
+                else             trend = '<span class="hist-same">＝</span>';
+            }
+            const unit = en.pullup ? 'lbs assist' : 'lbs';
+            const val = (en.weight === null || en.weight === undefined)
+                ? `${en.reps ?? '—'} reps`
+                : `${en.weight} ${unit} × ${en.reps ?? '—'}`;
+            return `
+                <div class="hist-prog-row">
+                    <span class="hist-prog-date">${en.date}${gymChip(en.gym, en.gymAssumed)}</span>
+                    <span class="hist-prog-val">${val}</span>
+                    <span>${trend}${prev && prev.gym && en.gym && prev.gym !== en.gym ? '<span class="xgym" title="Different gym than the row below — not directly comparable">⚠︎</span>' : ''}</span>
+                </div>
+                ${en.notes ? `<div class="hist-note" style="margin:0 0 6px;">📝 ${escapeHTML(en.notes)}</div>` : ''}`;
+        }).join('');
+
+        return `
+            <div class="hist-session">
+                <div class="hist-session-head">
+                    <span class="hist-date">${escapeHTML(name)}</span>
+                    <span class="badge">${entries.length} session${entries.length !== 1 ? 's' : ''}</span>
+                </div>
+                ${rows}
+            </div>`;
+    }).join('');
+}
+
+function exportCSV() {
+    const log = readLog();
+    if (!log.length) { alert('No sessions logged yet.'); return; }
+
+    const rows = [['Date', 'Day', 'Exercise', 'Set', 'Weight (lbs)', 'Reps', 'Notes']];
+    [...log].sort((a, b) => (a.ts || 0) - (b.ts || 0)).forEach(s => {
+        s.exercises.forEach(e => {
+            e.sets.forEach(st => {
+                rows.push([
+                    s.date,
+                    DAY_LABELS[s.day] || s.day,
+                    e.name,
+                    setLabel(st),
+                    e.pullup ? (st.assistW ?? '') : (st.weight ?? ''),
+                    st.reps ?? '',
+                    e.notes || ''
+                ]);
+            });
+        });
+    });
+
+    const csv = rows.map(r =>
+        r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')
+    ).join('\n');
+
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `workout_log_${localDate()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const conf = document.getElementById('conf-export');
+    if (conf) {
+        conf.style.display = 'block';
+        setTimeout(() => { conf.style.display = 'none'; }, 3000);
+    }
+}
+
+function clearHistory() {
+    if (!confirm('Delete all saved session history? This cannot be undone.\n\nYour "last session" reference weights will be kept.')) return;
+    localStorage.removeItem(LOG_KEY);
+    renderHistory();
+}
+
+
+// ─────────────────────────────────────────────────────────────
+//  TDEE TRACKER
+// ─────────────────────────────────────────────────────────────
+const TDEE_KEY = 'cp_tdee_weeks';
+
+function readWeeks() {
+    try {
+        const raw = localStorage.getItem(TDEE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) { return []; }
+}
+
+function saveWeek() {
+    const week     = parseInt(document.getElementById('tdee-week').value) || null;
+    const weight   = parseFloat(document.getElementById('tdee-weight').value) || null;
+    const cal      = parseFloat(document.getElementById('tdee-cal').value) || null;
+    const sessions = parseInt(document.getElementById('tdee-sessions').value);
+    const note     = document.getElementById('tdee-note').value || '';
+
+    if (!week || !weight || !cal) { alert('Week number, average weight, and average intake are all required.'); return; }
+
+    const weeks = readWeeks().filter(w => w.week !== week); // replace if re-logging same week
+    weeks.push({ week, weight, cal, sessions: isNaN(sessions) ? null : sessions, note, date: localDate() });
+    weeks.sort((a, b) => a.week - b.week);
+    localStorage.setItem(TDEE_KEY, JSON.stringify(weeks));
+
+    ['tdee-week','tdee-weight','tdee-cal','tdee-sessions','tdee-note'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
+
+    const conf = document.getElementById('conf-tdee');
+    if (conf) { conf.style.display = 'block'; setTimeout(() => { conf.style.display = 'none'; }, 3000); }
+
+    renderTDEE();
+}
+
+function renderTDEE() {
+    const weeks = readWeeks();
+    const result = document.getElementById('tdee-result');
+    const logBox = document.getElementById('tdee-log');
+    if (!result || !logBox) return;
+
+    if (weeks.length < 2) {
+        result.innerHTML = `
+            <div class="card-title"><span>Calculated TDEE</span><span class="badge">Needs 2+ weeks</span></div>
+            <div class="hist-empty">Log at least two weeks and the estimate appears here. Three or more makes it trustworthy.</div>`;
+        logBox.innerHTML = weeks.length ? renderWeekRows(weeks) : '';
+        return;
+    }
+
+    const first = weeks[0], last = weeks[weeks.length - 1];
+    const spanWeeks = last.week - first.week;
+    const days = spanWeeks * 7;
+
+    if (days <= 0) { result.innerHTML = '<div class="hist-empty">Log a later week to compute a trend.</div>'; logBox.innerHTML = renderWeekRows(weeks); return; }
+
+    const avgCal = weeks.reduce((s, w) => s + w.cal, 0) / weeks.length;
+    const change = last.weight - first.weight;
+    // Gaining weight means you ate ABOVE maintenance, so the surplus is
+    // SUBTRACTED from average intake to get TDEE. (Losing weight makes
+    // `change` negative, which correctly adds the deficit back.)
+    const tdee = avgCal - (change * 3500 / days);
+    const perWeek = change / spanWeeks;
+
+    // Weeks 1-2 are glycogen/water refill and distort the estimate
+    const reliable = spanWeeks >= 3;
+
+    // A result at or below BMR means the weight series is still dominated by
+    // glycogen, water and gut contents rather than tissue — the formula's core
+    // assumption is violated and the number is meaningless, not merely early.
+    const BMR_FLOOR = 1500;
+    const impossible = tdee < BMR_FLOOR;
+
+    let verdict, vClass;
+    if (impossible) {
+        verdict = `This comes out at ${Math.round(tdee).toLocaleString()} cal — at or below your BMR, which is impossible. `
+                + `It means weight moved far faster than intake can explain, so most of the change is glycogen, `
+                + `water and gut contents rather than tissue. Wait for the weight to stabilise; the formula needs `
+                + `non-fat mass to wash out before it produces anything real.`;
+        vClass = 'warn-box';
+    }
+    else if (!reliable) { verdict = 'Too early to act on. Water and glycogen are still refilling.'; vClass = 'warn-box'; }
+    else if (Math.abs(perWeek) < 0.25) { verdict = 'Weight is holding. This is maintenance — exactly where a recomp should sit.'; vClass = 'ok-box'; }
+    else if (perWeek > 0.5) { verdict = 'Gaining faster than recomp warrants. Pull 100–150 cal/day.'; vClass = 'warn-box'; }
+    else if (perWeek > 0) { verdict = 'Drifting up slightly. Fine if strength is climbing — watch another week before changing anything.'; vClass = 'ok-box'; }
+    else if (perWeek < -0.5) { verdict = 'Still losing. You are under maintenance — add 150 cal/day.'; vClass = 'warn-box'; }
+    else { verdict = 'Drifting down slightly. Add 100 cal/day if strength is flat.'; vClass = 'ok-box'; }
+
+    result.innerHTML = `
+        <div class="card-title"><span>Calculated TDEE</span><span class="badge">${spanWeeks} week span${reliable ? '' : ' · early'}</span></div>
+        <div class="stat-grid">
+            <div class="summary-item highlight"><div class="lbl">Actual TDEE</div><div class="val">${Math.round(tdee).toLocaleString()}</div></div>
+            <div class="summary-item"><div class="lbl">Avg Intake</div><div class="val">${Math.round(avgCal).toLocaleString()}</div></div>
+            <div class="summary-item"><div class="lbl">Weight Change</div><div class="val">${change > 0 ? '+' : ''}${change.toFixed(1)}</div></div>
+            <div class="summary-item"><div class="lbl">Per Week</div><div class="val">${perWeek > 0 ? '+' : ''}${perWeek.toFixed(2)}</div></div>
+        </div>
+        <div class="${vClass}" style="margin-top:14px;">${verdict}</div>
+        <div class="meal-ingredients" style="margin-top:10px;font-size:13px;color:#94a3b8;">
+            ${Math.round(avgCal).toLocaleString()} cal avg ${change >= 0 ? '−' : '+'} (${Math.abs(change).toFixed(1)} lbs × 3,500 ÷ ${days} days) = <strong>${Math.round(tdee).toLocaleString()} cal/day</strong>
+        </div>`;
+
+    logBox.innerHTML = renderWeekRows(weeks);
+}
+
+function renderWeekRows(weeks) {
+    const rows = weeks.map((w, i) => {
+        const prev = weeks[i - 1];
+        let delta = '';
+        if (prev) {
+            const d = w.weight - prev.weight;
+            const cls = Math.abs(d) < 0.25 ? 'hist-same' : (d > 0 ? 'hist-up' : 'hist-down');
+            delta = `<span class="${cls}">${d > 0 ? '+' : ''}${d.toFixed(1)} lbs</span>`;
+        }
+        return `
+            <div class="hist-ex">
+                <div class="hist-ex-name">Week ${w.week} &nbsp;<span style="font-weight:400;color:#94a3b8;font-size:12px;">${w.date}</span></div>
+                <div class="hist-sets">${w.weight.toFixed(1)} lbs &nbsp;·&nbsp; ${w.cal.toLocaleString()} cal/day${w.sessions !== null ? ` &nbsp;·&nbsp; ${w.sessions} session${w.sessions !== 1 ? 's' : ''}` : ''} ${delta ? '&nbsp;·&nbsp; ' + delta : ''}</div>
+                ${w.note ? `<div class="hist-note">📝 ${escapeHTML(w.note)}</div>` : ''}
+            </div>`;
+    }).join('');
+
+    return `
+        <div class="hist-session">
+            <div class="hist-session-head">
+                <span class="hist-date">Weekly Log</span>
+                <span class="badge">${weeks.length} week${weeks.length !== 1 ? 's' : ''}</span>
+            </div>
+            ${rows}
+        </div>`;
+}
+
+// ─────────────────────────────────────────────────────────────
+//  TAB SWITCHING  (kept separate to avoid selector collisions)
+// ─────────────────────────────────────────────────────────────
+function switchMain(panelId, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(panelId).classList.add('active');
+    document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+function switchDay(dayId, btn) {
+    document.querySelectorAll('.workout-day').forEach(d => d.classList.remove('active'));
+    document.getElementById(dayId).classList.add('active');
+    document.querySelectorAll('.day-tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+    buildWorkouts();
+    seedBaseline();
+    loadAllPrevSessions();
+    renderHistory();
+    renderTDEE();
+
+    // Draft recovery must run after buildWorkouts() so the inputs exist to fill.
+    wireDraftAutosave();
+    Object.keys(WORKOUTS).forEach(restoreDraft);
+
+    renderGymBars();
+    seedTDEE();
+    patchMissingEntries();
+    fixPhantomEntries();
+    fixMisdatedSessions();
+    backfillGyms();
+    renderHistory();      // re-render: backfill runs after the first pass, so
+                          // gym tags would otherwise be missing on older sessions
+    loadAllPrevSessions();
+    renderCalibration();
+    renderTDEE();
+
+    document.getElementById('build-label').textContent = APP_BUILD;
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    }
+});
+</script>
+</body>
+</html>
